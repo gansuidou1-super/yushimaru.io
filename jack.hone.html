@@ -492,8 +492,8 @@ const JUMP2_V = -11.2;
 const MOVE_SPEED = 4.1;
 const DASH_SPEED = 6.9;
 const MAX_FALL = 15;
-const HIT_W = 34, HIT_H = 58;
-const DRAW_H = 78;
+const HIT_W = 27, HIT_H = 46;
+const DRAW_H = 60;
 
 /* ============================================================
    ステージ定義
@@ -768,51 +768,156 @@ function updateEnemies(dt){
 function drawBackground(){
   const g = ctx.createLinearGradient(0,0,0,GROUND_Y);
   g.addColorStop(0, stageDef.skyTop);
+  g.addColorStop(0.7, stageDef.skyBottom);
   g.addColorStop(1, stageDef.skyBottom);
   ctx.fillStyle = g;
   ctx.fillRect(0,0,W,H);
 
-  // 雲
-  ctx.fillStyle = 'rgba(255,255,255,0.55)';
-  for(let i=0;i<6;i++){
-    const cx = ((i*420 - camX*0.25) % (W+400)) - 200;
-    const cy = 50 + (i%3)*30;
-    drawCloud(cx, cy, 1+(i%2)*0.4);
+  // 太陽の薄いグロー（雲の上に重ならないよう先に描く）
+  const sunG = ctx.createRadialGradient(W*0.78,90,0, W*0.78,90,150);
+  sunG.addColorStop(0,'rgba(255,255,235,0.35)');
+  sunG.addColorStop(1,'rgba(255,255,235,0)');
+  ctx.fillStyle = sunG;
+  ctx.fillRect(0,0,W,H);
+
+  // 雲（奥行き2層）
+  for(let i=0;i<5;i++){
+    const cx = ((i*460 - camX*0.18) % (W+500)) - 250;
+    const cy = 36 + (i%3)*22;
+    drawCloud(cx, cy, 0.85+(i%3)*0.22, 0.5);
+  }
+  for(let i=0;i<5;i++){
+    const cx = ((i*380 + 160 - camX*0.32) % (W+460)) - 230;
+    const cy = 70 + (i%2)*40;
+    drawCloud(cx, cy, 0.55+(i%2)*0.3, 0.85);
   }
 
-  // 遠景の山
+  // 遠景の山（淡いグラデーション）
   ctx.fillStyle = stageDef.hillColor2;
-  drawHillRow(0.45, 120, GROUND_Y-40);
-  ctx.fillStyle = stageDef.hillColor;
-  drawHillRow(0.65, 90, GROUND_Y-10);
+  drawHillRow(0.45, 120, GROUND_Y-40, 1);
+  // 近景の山（木立つき）
+  drawHillRow(0.65, 90, GROUND_Y-10, 2);
 }
-function drawCloud(x,y,scale){
+
+function drawCloud(x,y,scale,alpha){
+  if(x<-300||x>W+300) return;
+  ctx.save();
+  ctx.translate(x,y);
+  ctx.scale(scale,scale);
+  ctx.globalAlpha = alpha;
+
+  // 下側のやわらかい影（立体感）
+  ctx.fillStyle = 'rgba(150,178,205,0.32)';
   ctx.beginPath();
-  ctx.ellipse(x,y,30*scale,16*scale,0,0,Math.PI*2);
-  ctx.ellipse(x+26*scale,y-8*scale,22*scale,14*scale,0,0,Math.PI*2);
-  ctx.ellipse(x-26*scale,y-4*scale,20*scale,13*scale,0,0,Math.PI*2);
+  [[-30,10,17],[-6,14,22],[20,11,19],[40,12,14]].forEach(([lx,ly,lr])=>{
+    ctx.moveTo(lx+lr,ly); ctx.arc(lx,ly,lr,0,Math.PI*2);
+  });
   ctx.fill();
-}
-function drawHillRow(parallax, amp, baseY){
-  const offset = -camX*parallax;
+
+  // メインのふわふわボディ
+  ctx.fillStyle = 'rgba(255,255,255,0.95)';
   ctx.beginPath();
-  ctx.moveTo(0, baseY+60);
-  for(let x=-200; x<=W+400; x+=80){
-    const wx = x + (offset % 320);
-    const yy = baseY - amp - Math.sin((x+camX*parallax)/220)*18;
-    ctx.lineTo(wx, yy);
+  const lobes = [[-42,2,17],[-22,-10,21],[2,-15,24],[26,-9,22],[44,0,17],[58,6,13],[-56,8,12],[8,10,26]];
+  lobes.forEach(([lx,ly,lr])=>{
+    ctx.moveTo(lx+lr,ly); ctx.arc(lx,ly,lr,0,Math.PI*2);
+  });
+  ctx.fill();
+
+  // 上側のハイライト
+  ctx.fillStyle = 'rgba(255,255,255,0.85)';
+  ctx.beginPath();
+  ctx.arc(-6,-14,11,0,Math.PI*2);
+  ctx.arc(16,-11,8,0,Math.PI*2);
+  ctx.fill();
+  ctx.restore();
+}
+
+function drawHillRow(parallax, amp, baseY, layer){
+  const off = (-camX*parallax) % 360;
+  const pts = [];
+  for(let x=-260; x<=W+360; x+=40){
+    const wx = x + off;
+    const yy = baseY - amp - Math.sin((x+camX*parallax)/210)*20 - Math.cos((x+camX*parallax)/95)*7;
+    pts.push([wx,yy]);
   }
-  ctx.lineTo(W+400, baseY+60);
+  ctx.beginPath();
+  ctx.moveTo(pts[0][0], baseY+60);
+  ctx.lineTo(pts[0][0], pts[0][1]);
+  for(let i=0;i<pts.length-1;i++){
+    const [x0,y0] = pts[i], [x1,y1] = pts[i+1];
+    const mx = (x0+x1)/2, my=(y0+y1)/2;
+    ctx.quadraticCurveTo(x0,y0,mx,my);
+  }
+  ctx.lineTo(pts[pts.length-1][0], baseY+60);
   ctx.closePath();
+
+  const grad = ctx.createLinearGradient(0, baseY-amp-40, 0, baseY+20);
+  if(layer===1){
+    grad.addColorStop(0, lighten(stageDef.hillColor2, 14));
+    grad.addColorStop(1, stageDef.hillColor2);
+  } else {
+    grad.addColorStop(0, lighten(stageDef.hillColor, 16));
+    grad.addColorStop(1, stageDef.hillColor);
+  }
+  ctx.fillStyle = grad;
   ctx.fill();
+
+  if(layer===2){
+    // 木立のシルエット（近景の山にだけ）
+    ctx.fillStyle = 'rgba(0,0,0,0.12)';
+    for(let i=0;i<pts.length;i+=2){
+      const [px,py] = pts[i];
+      if(px<-40||px>W+40) continue;
+      drawTreeBlob(px+18, py+6, 16+((i*37)%13));
+    }
+  }
+}
+
+function drawTreeBlob(x,y,r){
+  ctx.beginPath();
+  ctx.arc(x-r*0.5,y,r*0.62,0,Math.PI*2);
+  ctx.arc(x+r*0.4,y-r*0.18,r*0.72,0,Math.PI*2);
+  ctx.arc(x,y-r*0.5,r*0.6,0,Math.PI*2);
+  ctx.fill();
+}
+
+function lighten(hex, amt){
+  const h = hex.replace('#','');
+  const r = Math.min(255, parseInt(h.substring(0,2),16)+amt);
+  const g = Math.min(255, parseInt(h.substring(2,4),16)+amt);
+  const b = Math.min(255, parseInt(h.substring(4,6),16)+amt);
+  return 'rgb('+r+','+g+','+b+')';
 }
 
 function drawGround(){
   const x0 = -camX;
   ctx.fillStyle = stageDef.groundDark;
   ctx.fillRect(x0, GROUND_Y, stageDef.levelW, H-GROUND_Y+40);
-  ctx.fillStyle = stageDef.groundTop;
-  ctx.fillRect(x0, GROUND_Y, stageDef.levelW, 14);
+
+  const topGrad = ctx.createLinearGradient(0,GROUND_Y,0,GROUND_Y+16);
+  topGrad.addColorStop(0, lighten(stageDef.groundTop,10));
+  topGrad.addColorStop(1, stageDef.groundTop);
+  ctx.fillStyle = topGrad;
+  ctx.fillRect(x0, GROUND_Y, stageDef.levelW, 16);
+
+  // 草のふさ（テクスチャ）
+  ctx.fillStyle = lighten(stageDef.groundTop, 18);
+  const startTuft = Math.floor((camX-40)/22)*22;
+  for(let gx = startTuft; gx < camX+W+40; gx += 22){
+    const sx = gx - camX;
+    const h = 5 + ((gx*7)%5);
+    ctx.beginPath();
+    ctx.moveTo(sx, GROUND_Y+2);
+    ctx.lineTo(sx+4, GROUND_Y-h+2);
+    ctx.lineTo(sx+8, GROUND_Y+2);
+    ctx.fill();
+  }
+  // 微妙な縞模様で奥行き
+  ctx.fillStyle = 'rgba(0,0,0,0.06)';
+  for(let i=0;i<6;i++){
+    ctx.fillRect(x0, GROUND_Y+18+i*26, stageDef.levelW, 3);
+  }
+
   // ピット（落とし穴）
   for(const pr of stageDef.pits){
     const px = pr[0]-camX, pw = pr[1]-pr[0];
