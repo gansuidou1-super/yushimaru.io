@@ -299,17 +299,19 @@
       <div class="tbtn wide" id="btnDash">ダッシュ</div>
     </div>
     <div class="side">
+      <div class="tbtn wide" id="btnBark">🐶ほえる</div>
       <div class="tbtn big" id="btnJump">⤒</div>
     </div>
   </div>
 
-  <div id="hint">← → で移動 ／ スペース（または ↑）でジャンプ（2段可）／ Shiftでダッシュ</div>
+  <div id="hint">← → で移動 ／ スペース（または ↑）でジャンプ（2段可）／ Shiftでダッシュ ／ Bでほえる</div>
 
   <div class="overlay" id="startScreen">
     <h1>ジャックの<br>ほねほね大冒険</h1>
     <p>← → キー（またはボタン）で移動、スペース/↑/⤒ボタンでジャンプ！空中でもう一度押すと2段ジャンプ。<br>
     Shift（またはダッシュボタン）で走る！ほねを集めてスコアを稼ぎ、各ステージのゴールを目指そう。<br>
-    敵は踏みつけてやっつけよう。ボスには連続踏みつけ攻撃だ！</p>
+    敵は踏みつけてやっつけよう。ボスには連続踏みつけ攻撃だ！<br>
+    B（またはほえるボタン）で「ワン！」と鳴ける…けど特に意味はないよ🐶</p>
     <button class="btn" id="startBtn">▶ ゲームスタート</button>
     <div class="stageSelectList" id="stageSelectList"></div>
   </div>
@@ -476,6 +478,7 @@ function sfxOver(){ if(!audioCtx||muted) return; const t=audioCtx.currentTime; [
 function sfxBossHit(){ if(!audioCtx||muted) return; const t=audioCtx.currentTime; tone(t,180,0.18,'sawtooth',0.28,sfxGain,90); tone(t+0.02,260,0.14,'square',0.18,sfxGain,120); }
 function sfxBossDefeat(){ if(!audioCtx||muted) return; const t=audioCtx.currentTime; [659.25,587.33,523.25,440,349.23,293.66,233.08].forEach((f,i)=>tone(t+i*0.09,f,0.3,'sawtooth',0.22,sfxGain,f*0.6)); }
 function sfxStageClear(){ if(!audioCtx||muted) return; const t=audioCtx.currentTime; [523.25,659.25,783.99,1046.50,1318.5].forEach((f,i)=>tone(t+i*0.11,f,0.2,'triangle',0.22,sfxGain)); }
+function sfxBark(){ if(!audioCtx||muted) return; const t=audioCtx.currentTime; tone(t,330,0.09,'sawtooth',0.30,sfxGain,180); tone(t+0.1,300,0.10,'sawtooth',0.26,sfxGain,150); }
 
 document.getElementById('soundBtn').addEventListener('click', ()=>{
   muted = !muted;
@@ -644,6 +647,17 @@ bindTouchBtn('btnLeft', ()=>keys.left=true, ()=>keys.left=false);
 bindTouchBtn('btnRight', ()=>keys.right=true, ()=>keys.right=false);
 bindTouchBtn('btnDash', ()=>keys.dash=true, ()=>keys.dash=false);
 bindTouchBtn('btnJump', ()=>keys.jump=true, ()=>keys.jump=false);
+bindTouchBtn('btnBark', ()=>triggerBark(), ()=>{});
+
+function triggerBark(){
+  if(gameState!=='playing' || !player) return;
+  player.barkTimer = 480;
+  sfxBark();
+  spawnParticles(player.x+HIT_W/2, player.y-6, '#ffffff', 3, 1.6);
+}
+window.addEventListener('keydown', (e)=>{
+  if((e.key==='b'||e.key==='B') && !e.repeat) triggerBark();
+});
 
 /* ============================================================
    アニメーション定義
@@ -674,7 +688,7 @@ function resetPlayer(x){
     x, y: GROUND_Y-HIT_H, vx:0, vy:0, onGround:false, facing:1,
     jumpsUsed:0, dashing:false,
     animState:'idle', animIndex:0, animAcc:0,
-    hurtTimer:0, celebrate:false,
+    hurtTimer:0, celebrate:false, barkTimer:0,
   };
 }
 
@@ -861,24 +875,6 @@ function drawHillRow(parallax, amp, baseY, layer){
   }
   ctx.fillStyle = grad;
   ctx.fill();
-
-  if(layer===2){
-    // 木立のシルエット（近景の山にだけ）
-    ctx.fillStyle = 'rgba(0,0,0,0.12)';
-    for(let i=0;i<pts.length;i+=2){
-      const [px,py] = pts[i];
-      if(px<-40||px>W+40) continue;
-      drawTreeBlob(px+18, py+6, 16+((i*37)%13));
-    }
-  }
-}
-
-function drawTreeBlob(x,y,r){
-  ctx.beginPath();
-  ctx.arc(x-r*0.5,y,r*0.62,0,Math.PI*2);
-  ctx.arc(x+r*0.4,y-r*0.18,r*0.72,0,Math.PI*2);
-  ctx.arc(x,y-r*0.5,r*0.6,0,Math.PI*2);
-  ctx.fill();
 }
 
 function lighten(hex, amt){
@@ -900,19 +896,11 @@ function drawGround(){
   ctx.fillStyle = topGrad;
   ctx.fillRect(x0, GROUND_Y, stageDef.levelW, 16);
 
-  // 草のふさ（テクスチャ）
-  ctx.fillStyle = lighten(stageDef.groundTop, 18);
-  const startTuft = Math.floor((camX-40)/22)*22;
-  for(let gx = startTuft; gx < camX+W+40; gx += 22){
-    const sx = gx - camX;
-    const h = 5 + ((gx*7)%5);
-    ctx.beginPath();
-    ctx.moveTo(sx, GROUND_Y+2);
-    ctx.lineTo(sx+4, GROUND_Y-h+2);
-    ctx.lineTo(sx+8, GROUND_Y+2);
-    ctx.fill();
-  }
-  // 微妙な縞模様で奥行き
+  // やわらかい光のライン（滑らかな質感）
+  ctx.fillStyle = 'rgba(255,255,255,0.18)';
+  ctx.fillRect(x0, GROUND_Y, stageDef.levelW, 2);
+
+  // 微妙な縞模様で奥行き（滑らかなグラデーション帯）
   ctx.fillStyle = 'rgba(0,0,0,0.06)';
   for(let i=0;i<6;i++){
     ctx.fillRect(x0, GROUND_Y+18+i*26, stageDef.levelW, 3);
@@ -1242,6 +1230,7 @@ function updatePlayer(dt){
 
   if(invTimer>0) invTimer -= dt;
   if(player.hurtTimer>0) player.hurtTimer -= dt*16.6667;
+  if(player.barkTimer>0) player.barkTimer -= dt*16.6667;
 
   // ほね収集
   for(const b of runtime.bones){
@@ -1434,6 +1423,7 @@ function drawBoss(){
    ============================================================ */
 function currentFrameKey(){
   if(player.hurtTimer > 0) return 'bark';
+  if(player.barkTimer > 0) return 'bark';
   if(player.celebrate) return 'sit';
   const st = player.animState;
   if(st==='jump') return 'jump';
@@ -1615,4 +1605,3 @@ requestAnimationFrame(loop);
 </script>
 </body>
 </html>
-
