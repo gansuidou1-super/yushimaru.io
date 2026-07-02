@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>The Atelier</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%2316151C'/%3E%3Crect x='16' y='16' width='32' height='32' fill='none' stroke='%23B08D57' stroke-width='4'/%3E%3Ccircle cx='20' cy='20' r='2.5' fill='%23B08D57'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
@@ -172,10 +173,27 @@
   .btn.small{padding:6px 12px;font-size:11px;}
 
   .item-row{
-    border:1px solid var(--line);border-radius:4px;padding:20px;margin-bottom:14px;background:var(--ink-2);
+    border:1px solid var(--line);border-radius:4px;padding:20px 20px 20px 40px;margin-bottom:14px;
+    background:var(--ink-2);position:relative;transition:opacity .2s;
   }
+  .item-row.dragging{opacity:0.35;}
+  .row-drag-handle{
+    position:absolute;left:12px;top:20px;bottom:20px;display:flex;align-items:center;
+    color:var(--plaster-2);cursor:grab;font-size:16px;letter-spacing:2px;user-select:none;
+  }
+  .row-drag-handle:active{cursor:grabbing;}
   .field-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:12px;}
   .field-grid.full{grid-template-columns:1fr;}
+  .field-grid-img{grid-template-columns:130px 1fr;}
+  .img-uploader{
+    aspect-ratio:1/1;border-radius:4px;border:1px dashed var(--line);cursor:pointer;
+    display:flex;align-items:center;justify-content:center;text-align:center;overflow:hidden;
+    background-color:var(--ink-3);outline:none;
+  }
+  .img-uploader:focus{border-color:var(--brass-light);}
+  .img-uploader-hint{
+    font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--plaster-2);line-height:1.6;padding:8px;
+  }
   label{
     display:block;font-family:'IBM Plex Mono',monospace;font-size:10.5px;letter-spacing:0.06em;
     color:var(--plaster-2);text-transform:uppercase;margin-bottom:6px;
@@ -283,7 +301,12 @@ async function refreshItems(){
       snapshot = await db.collection('items').where('visibility','==','public').get();
     }
     state.items = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
-    state.items.sort((a,b) => (b.createdAt||0) - (a.createdAt||0));
+    state.items.sort((a,b) => {
+      const ao = (a.order === undefined || a.order === null) ? Infinity : a.order;
+      const bo = (b.order === undefined || b.order === null) ? Infinity : b.order;
+      if(ao !== bo) return ao - bo;
+      return (b.createdAt||0) - (a.createdAt||0);
+    });
   }catch(e){
     console.error(e);
     state.items = [];
@@ -300,12 +323,12 @@ async function maybeSeed(){
       await db.collection('items').add({
         title: 'サンプル作品A', url: 'https://example.com',
         description: 'ここに作品の説明を書きます。編集ページから内容を書き換えたり削除したりできます。',
-        tags: 'Web App', visibility: 'public', createdAt: Date.now()
+        tags: 'Web App', visibility: 'public', createdAt: Date.now(), order: 0
       });
       await db.collection('items').add({
         title: '非公開の下書き', url: 'https://example.com',
         description: '公開範囲を「非公開」にすると、あなたのみ閲覧できます。',
-        tags: 'Prototype', visibility: 'private', createdAt: Date.now()+1
+        tags: 'Prototype', visibility: 'private', createdAt: Date.now()+1, order: 1
       });
     }
     await db.collection('meta').doc('seed').set({ done: true });
@@ -398,13 +421,15 @@ function toggleFlip(id){
 }
 
 function renderCard(item, showStatus){
-  const bg = frameBg(item.title);
+  const artStyle = item.imageUrl
+    ? `background-image:linear-gradient(rgba(22,21,28,0) 40%, rgba(22,21,28,0.88)), url('${escapeHtml(item.imageUrl)}');background-size:cover;background-position:center;`
+    : `background:${frameBg(item.title)};`;
   const flipped = state.flippedId === item.id;
   const statusDot = showStatus ? `<div class="status-dot ${item.visibility}"></div>` : '';
   return `
     <div class="frame-outer">
       <div class="frame">
-        <div class="art" style="background:${bg}">
+        <div class="art" style="${artStyle}">
           ${statusDot}
           <div class="tagline">${escapeHtml(item.title)}</div>
         </div>
@@ -463,13 +488,30 @@ function renderStudio(){
 
 function fieldRow(item){
   const id = item.id;
+  const imgStyle = item.imageUrl
+    ? `background-image:url('${escapeHtml(item.imageUrl)}');background-size:cover;background-position:center;`
+    : `background:${frameBg(item.title)};`;
   return `
-    <div class="item-row">
-      <div class="field-grid">
+    <div class="item-row" draggable="true"
+      ondragstart="dragStart(event,'${id}')"
+      ondragover="dragOver(event)"
+      ondrop="dragDrop(event,'${id}')"
+      ondragend="dragEnd(event)">
+      <div class="row-drag-handle" title="ドラッグして並び替え">⠿</div>
+      <div class="field-grid field-grid-img">
+        <div class="img-uploader" style="${imgStyle}" tabindex="0" onpaste="handlePaste(event,'${id}')" onclick="document.getElementById('f_imgfile_${id}').click()">
+          ${!item.imageUrl ? '<span class="img-uploader-hint">クリックで選択<br>またはCtrl+Vで貼り付け</span>' : ''}
+        </div>
         <div>
           <label>タイトル</label>
           <input type="text" id="f_title_${id}" value="${escapeHtml(item.title)}">
+          <div style="margin-top:10px;">
+            <input type="file" accept="image/*" id="f_imgfile_${id}" style="display:none" onchange="handleImageChange(event,'${id}')">
+            ${item.imageUrl ? `<button class="btn small" onclick="event.stopPropagation();removeImage('${id}')">画像を削除</button>` : ''}
+          </div>
         </div>
+      </div>
+      <div class="field-grid">
         <div>
           <label>タグ / カテゴリ</label>
           <input type="text" id="f_tags_${id}" value="${escapeHtml(item.tags)}">
@@ -580,7 +622,8 @@ async function addItem(){
     description: document.getElementById('new_desc').value.trim(),
     tags: document.getElementById('new_tags').value.trim(),
     visibility: document.getElementById('new_vis').checked ? 'public' : 'private',
-    createdAt: Date.now()
+    createdAt: Date.now(),
+    order: state.items.length
   };
   try{
     await db.collection('items').add(item);
@@ -619,6 +662,112 @@ async function deleteItem(id){
   }
   await refreshItems();
   render();
+}
+
+/* ---------------- image upload ---------------- */
+async function uploadImage(id, file){
+  if(!file || file.type.indexOf('image') !== 0){
+    alert('画像ファイルを選択してください。');
+    return;
+  }
+  try{
+    const base64 = await resizeToBase64(file, 800, 0.82);
+    if(base64.length > 900000){
+      alert('画像が大きすぎます。もう少し小さい画像を使ってください。');
+      return;
+    }
+    await db.collection('items').doc(id).update({ imageUrl: base64 });
+    await refreshItems();
+    render();
+  }catch(e){
+    console.error(e);
+    alert('画像の保存に失敗しました。');
+  }
+}
+function resizeToBase64(file, maxPx, quality){
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      img.src = ev.target.result;
+      img.onload = () => {
+        let w = img.width, h = img.height;
+        if(w > maxPx || h > maxPx){
+          if(w > h){ h = Math.round(h * maxPx / w); w = maxPx; }
+          else{ w = Math.round(w * maxPx / h); h = maxPx; }
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width = w; canvas.height = h;
+        canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+        resolve(canvas.toDataURL('image/jpeg', quality));
+      };
+      img.onerror = reject;
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+function handleImageChange(e, id){
+  const file = e.target.files[0];
+  if(file) uploadImage(id, file);
+}
+function handlePaste(e, id){
+  const items = e.clipboardData && e.clipboardData.items;
+  if(!items) return;
+  for(const it of items){
+    if(it.type.indexOf('image') === 0){
+      const file = it.getAsFile();
+      e.preventDefault();
+      uploadImage(id, file);
+      break;
+    }
+  }
+}
+async function removeImage(id){
+  try{
+    await db.collection('items').doc(id).update({ imageUrl: firebase.firestore.FieldValue.delete() });
+    await refreshItems();
+    render();
+  }catch(e){
+    alert('画像の削除に失敗しました。');
+  }
+}
+
+/* ---------------- drag-and-drop reorder ---------------- */
+let draggedId = null;
+function dragStart(e, id){
+  draggedId = id;
+  e.dataTransfer.effectAllowed = 'move';
+  e.currentTarget.classList.add('dragging');
+}
+function dragOver(e){
+  e.preventDefault();
+  e.dataTransfer.dropEffect = 'move';
+}
+async function dragDrop(e, targetId){
+  e.preventDefault();
+  if(!draggedId || draggedId === targetId) return;
+  const ids = state.items.map(i => i.id);
+  const fromIdx = ids.indexOf(draggedId);
+  const toIdx = ids.indexOf(targetId);
+  if(fromIdx === -1 || toIdx === -1) return;
+  ids.splice(fromIdx, 1);
+  ids.splice(toIdx, 0, draggedId);
+  try{
+    const batch = db.batch();
+    ids.forEach((itemId, idx) => {
+      batch.update(db.collection('items').doc(itemId), { order: idx });
+    });
+    await batch.commit();
+  }catch(e){
+    alert('並び替えの保存に失敗しました。');
+  }
+  await refreshItems();
+  render();
+}
+function dragEnd(e){
+  e.currentTarget.classList.remove('dragging');
+  draggedId = null;
 }
 
 /* live label update for visibility switches without full re-render */
