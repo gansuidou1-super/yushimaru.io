@@ -6,7 +6,9 @@
 <title>The Atelier</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
-<script src="https://accounts.google.com/gsi/client" async defer></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
 <style>
   :root{
     --ink:#16151C;
@@ -242,8 +244,20 @@
 <div id="modalContainer"></div>
 
 <script>
-const GOOGLE_CLIENT_ID = "365457763047-cf2k4me29mvq851jlhiqc1144gutnrna.apps.googleusercontent.com";
 const ADMIN_EMAIL = "gansuidou1@gmail.com";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyAmUGrQy4n42V_AzulkMrLw13x2XInhF8Q",
+  authDomain: "atelier-e1661.firebaseapp.com",
+  projectId: "atelier-e1661",
+  storageBucket: "atelier-e1661.firebasestorage.app",
+  messagingSenderId: "470776620520",
+  appId: "1:470776620520:web:607c70e967b7af8084b05d"
+};
+firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
+const db = firebase.firestore();
+const provider = new firebase.auth.GoogleAuthProvider();
 
 let state = {
   view: 'public',        // 'public' | 'studio' | 'desk'
@@ -259,111 +273,92 @@ let state = {
   showAddForm: false,
 };
 
-/* ---------------- storage ---------------- */
-async function loadItems(){
+/* ---------------- data (Firestore) ---------------- */
+async function refreshItems(){
   try{
-    const res = await window.storage.get('gallery-items', true);
-    state.items = res ? JSON.parse(res.value) : [];
-  }catch(e){
-    state.items = [];
-  }
-  if(state.items.length === 0){
-    let seeded = false;
-    try{
-      const flag = await window.storage.get('gallery-seeded', true);
-      seeded = !!flag;
-    }catch(e){ seeded = false; }
-    if(!seeded){
-      state.items = [
-        {
-          id: cryptoId(),
-          title: 'サンプル作品A',
-          url: 'https://example.com',
-          description: 'ここに作品の説明を書きます。編集ページから内容を書き換えたり削除したりできます。',
-          tags: 'Web App',
-          visibility: 'public',
-          createdAt: Date.now()
-        },
-        {
-          id: cryptoId(),
-          title: '非公開の下書き',
-          url: 'https://example.com',
-          description: '公開範囲を「非公開」にすると、あなたのみ閲覧できます。',
-          tags: 'Prototype',
-          visibility: 'private',
-          createdAt: Date.now()
-        }
-      ];
-      await saveItems();
-      try{ await window.storage.set('gallery-seeded', 'true', true); }catch(e){}
+    let snapshot;
+    if(isAdmin()){
+      snapshot = await db.collection('items').get();
+    }else{
+      snapshot = await db.collection('items').where('visibility','==','public').get();
     }
+    state.items = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+    state.items.sort((a,b) => (b.createdAt||0) - (a.createdAt||0));
+  }catch(e){
+    console.error(e);
+    state.items = [];
   }
   state.loaded = true;
 }
-async function saveItems(){
+async function maybeSeed(){
+  if(!isAdmin()) return;
   try{
-    await window.storage.set('gallery-items', JSON.stringify(state.items), true);
-  }catch(e){
-    alert('保存に失敗しました。通信状態を確認してもう一度お試しください。');
-  }
-}
-function cryptoId(){
-  return 'it_' + Math.random().toString(36).slice(2,10) + Date.now().toString(36);
+    const metaDoc = await db.collection('meta').doc('seed').get();
+    if(metaDoc.exists) return;
+    const snap = await db.collection('items').get();
+    if(snap.empty){
+      await db.collection('items').add({
+        title: 'サンプル作品A', url: 'https://example.com',
+        description: 'ここに作品の説明を書きます。編集ページから内容を書き換えたり削除したりできます。',
+        tags: 'Web App', visibility: 'public', createdAt: Date.now()
+      });
+      await db.collection('items').add({
+        title: '非公開の下書き', url: 'https://example.com',
+        description: '公開範囲を「非公開」にすると、あなたのみ閲覧できます。',
+        tags: 'Prototype', visibility: 'private', createdAt: Date.now()+1
+      });
+    }
+    await db.collection('meta').doc('seed').set({ done: true });
+  }catch(e){ console.error(e); }
 }
 
-/* ---------------- auth ---------------- */
-function parseJwt(token){
-  const base64 = token.split('.')[1].replace(/-/g,'+').replace(/_/g,'/');
-  const json = decodeURIComponent(atob(base64).split('').map(c=>'%'+('00'+c.charCodeAt(0).toString(16)).slice(-2)).join(''));
-  return JSON.parse(json);
-}
-function handleCredential(response){
-  try{
-    const payload = parseJwt(response.credential);
-    if(payload.email === ADMIN_EMAIL){
-      state.authEmail = payload.email;
-      state.authName = payload.name;
-      state.authPicture = payload.picture;
+/* ---------------- auth (Firebase) ---------------- */
+function requestSignIn(){
+  auth.signInWithPopup(provider).then(async (result) => {
+    const email = result.user.email;
+    if(email === ADMIN_EMAIL){
+      state.authEmail = email;
+      state.authName = result.user.displayName;
+      state.authPicture = result.user.photoURL;
       state.deniedEmail = null;
       state.showLoginModal = false;
-      render();
+      await maybeSeed();
+      await refreshItems();
     }else{
-      state.deniedEmail = payload.email;
-      render();
+      state.deniedEmail = email;
+      auth.signOut();
     }
-  }catch(e){
-    state.deniedEmail = '(読み取りエラー)';
     render();
-  }
-}
-function initGoogle(){
-  if(typeof google === 'undefined' || !google.accounts){
-    setTimeout(initGoogle, 300);
-    return;
-  }
-  google.accounts.id.initialize({
-    client_id: GOOGLE_CLIENT_ID,
-    callback: handleCredential
+  }).catch((err) => {
+    state.deniedEmail = '(ログインに失敗しました: ' + err.code + ')';
+    render();
   });
-  const holder = document.getElementById('gsiHolder');
-  if(holder){
-    google.accounts.id.renderButton(holder, { theme:'filled_black', size:'large', shape:'pill', text:'signin_with' });
-  }
 }
 function logout(){
+  auth.signOut();
   state.authEmail = null;
   state.authName = null;
   state.authPicture = null;
-  goTo('public');
+  refreshItems().then(() => goTo('public'));
 }
 function isAdmin(){ return state.authEmail === ADMIN_EMAIL; }
+
+auth.onAuthStateChanged(async (user) => {
+  if(user && user.email === ADMIN_EMAIL){
+    state.authEmail = user.email;
+    state.authName = user.displayName;
+    state.authPicture = user.photoURL;
+    await maybeSeed();
+    await refreshItems();
+    render();
+  }
+});
 
 /* ---------------- navigation ---------------- */
 function goTo(view){
   if((view === 'studio' || view === 'desk') && !isAdmin()){
     state.showLoginModal = true;
     render();
-    setTimeout(initGoogle, 50);
     return;
   }
   state.view = view;
@@ -580,7 +575,6 @@ async function addItem(){
   const url = document.getElementById('new_url').value.trim();
   if(!title || !url){ alert('タイトルとURLは必須です。'); return; }
   const item = {
-    id: cryptoId(),
     title,
     url,
     description: document.getElementById('new_desc').value.trim(),
@@ -588,26 +582,42 @@ async function addItem(){
     visibility: document.getElementById('new_vis').checked ? 'public' : 'private',
     createdAt: Date.now()
   };
-  state.items.push(item);
-  await saveItems();
+  try{
+    await db.collection('items').add(item);
+  }catch(e){
+    alert('保存に失敗しました。通信状態を確認してもう一度お試しください。');
+    return;
+  }
   state.showAddForm = false;
+  await refreshItems();
   render();
 }
 async function saveItem(id){
-  const item = state.items.find(i=>i.id===id);
-  if(!item) return;
-  item.title = document.getElementById(`f_title_${id}`).value.trim();
-  item.url = document.getElementById(`f_url_${id}`).value.trim();
-  item.description = document.getElementById(`f_desc_${id}`).value.trim();
-  item.tags = document.getElementById(`f_tags_${id}`).value.trim();
-  item.visibility = document.getElementById(`f_vis_${id}`).checked ? 'public' : 'private';
-  await saveItems();
+  const updated = {
+    title: document.getElementById(`f_title_${id}`).value.trim(),
+    url: document.getElementById(`f_url_${id}`).value.trim(),
+    description: document.getElementById(`f_desc_${id}`).value.trim(),
+    tags: document.getElementById(`f_tags_${id}`).value.trim(),
+    visibility: document.getElementById(`f_vis_${id}`).checked ? 'public' : 'private'
+  };
+  try{
+    await db.collection('items').doc(id).update(updated);
+  }catch(e){
+    alert('保存に失敗しました。通信状態を確認してもう一度お試しください。');
+    return;
+  }
+  await refreshItems();
   render();
 }
 async function deleteItem(id){
   if(!confirm('この作品を削除します。よろしいですか？')) return;
-  state.items = state.items.filter(i=>i.id!==id);
-  await saveItems();
+  try{
+    await db.collection('items').doc(id).delete();
+  }catch(e){
+    alert('削除に失敗しました。通信状態を確認してもう一度お試しください。');
+    return;
+  }
+  await refreshItems();
   render();
 }
 
@@ -650,13 +660,14 @@ function renderModal(){
       <div class="modal">
         <h3>Studio Access</h3>
         <p>このエリアは制作者のみアクセスできます。<br>Googleアカウントでサインインしてください。</p>
-        <div class="gsi-holder" id="gsiHolder"></div>
+        <div class="gsi-holder">
+          <button class="btn primary" onclick="requestSignIn()" style="padding:12px 24px;font-size:13px;">Googleでログイン</button>
+        </div>
         ${state.deniedEmail ? `<div class="denied">「${escapeHtml(state.deniedEmail)}」ではアクセスできません。</div>` : ''}
         <button class="close" onclick="closeModal()">公開ページに戻る</button>
       </div>
     </div>
   `;
-  initGoogle();
 }
 
 /* ---------------- main render ---------------- */
@@ -677,7 +688,7 @@ function render(){
 
 (async function init(){
   render();
-  await loadItems();
+  await refreshItems();
   render();
 })();
 </script>
