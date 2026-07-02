@@ -175,6 +175,12 @@
     padding:8px 18px;cursor:pointer;margin-right:8px;
   }
   .qr-dl:hover{background:var(--ink);color:var(--chalk);}
+  .paste-pick-btn{
+    width:100%;font-family:'Inter',sans-serif;font-size:14px;color:var(--ink);
+    background:var(--plaster-2);border:none;border-radius:4px;padding:11px 16px;
+    cursor:pointer;text-align:left;
+  }
+  .paste-pick-btn:hover{background:var(--brass-light);}
   .hint{
     font-family:'IBM Plex Mono',monospace;font-size:10px;color:rgba(234,227,214,0.35);
     margin-top:6px;
@@ -590,7 +596,7 @@ function fieldRow(item){
       ondragend="dragEnd(event)">
       <div class="row-drag-handle" title="ドラッグして並び替え">⠿</div>
       <div class="field-grid field-grid-img">
-        <div class="img-uploader" style="${imgStyle}" tabindex="0" onpaste="handlePaste(event,'${id}')" onclick="document.getElementById('f_imgfile_${id}').click()">
+        <div class="img-uploader" style="${imgStyle}" tabindex="0" onclick="document.getElementById('f_imgfile_${id}').click()">
           ${!item.imageUrl ? '<span class="img-uploader-hint">クリックで選択<br>またはCtrl+Vで貼り付け</span>' : ''}
         </div>
         <div>
@@ -803,16 +809,60 @@ function handleImageChange(e, id){
   if(file) uploadImage(id, file);
 }
 function handlePaste(e, id){
+  // kept for compatibility but actual paste is handled globally
+}
+
+/* global paste listener — active when desk view is open */
+document.addEventListener('paste', (e) => {
+  if(state.view !== 'desk' || !isAdmin()) return;
   const items = e.clipboardData && e.clipboardData.items;
   if(!items) return;
+  let imageFile = null;
   for(const it of items){
-    if(it.type.indexOf('image') === 0){
-      const file = it.getAsFile();
-      e.preventDefault();
-      uploadImage(id, file);
-      break;
-    }
+    if(it.type.indexOf('image') === 0){ imageFile = it.getAsFile(); break; }
   }
+  if(!imageFile) return;
+  e.preventDefault();
+
+  if(state.items.length === 0) return;
+  if(state.items.length === 1){
+    uploadImage(state.items[0].id, imageFile);
+    return;
+  }
+  // Multiple items — show a picker
+  showPastePicker(imageFile);
+});
+
+function showPastePicker(file){
+  const existing = document.getElementById('pastePickerOverlay');
+  if(existing) existing.remove();
+  const overlay = document.createElement('div');
+  overlay.id = 'pastePickerOverlay';
+  overlay.className = 'qr-modal';
+  const listHTML = state.items.map(item => `
+    <button class="paste-pick-btn" onclick="pickItem('${item.id}')">${escapeHtml(item.title)}</button>
+  `).join('');
+  overlay.innerHTML = `
+    <div class="qr-card" style="max-width:340px;">
+      <p class="qr-card-title" style="margin-bottom:16px;">どの作品に貼り付けますか？</p>
+      <div id="paste-pick-list" style="display:flex;flex-direction:column;gap:8px;margin-bottom:20px;">${listHTML}</div>
+      <button class="qr-close" onclick="closePastePicker()">キャンセル</button>
+    </div>
+  `;
+  overlay.addEventListener('click', (e)=>{ if(e.target===overlay) closePastePicker(); });
+  overlay._pendingFile = file;
+  document.body.appendChild(overlay);
+}
+function closePastePicker(){
+  const el = document.getElementById('pastePickerOverlay');
+  if(el) el.remove();
+}
+function pickItem(id){
+  const overlay = document.getElementById('pastePickerOverlay');
+  if(!overlay) return;
+  const file = overlay._pendingFile;
+  closePastePicker();
+  if(file) uploadImage(id, file);
 }
 async function removeImage(id){
   try{
