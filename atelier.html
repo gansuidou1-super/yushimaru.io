@@ -219,12 +219,19 @@
     border:1px solid var(--line);border-radius:4px;padding:20px 20px 20px 40px;margin-bottom:14px;
     background:var(--ink-2);position:relative;transition:opacity .2s;
   }
-  .item-row.dragging{opacity:0.35;}
-  .row-drag-handle{
-    position:absolute;left:12px;top:20px;bottom:20px;display:flex;align-items:center;
-    color:var(--plaster-2);cursor:grab;font-size:16px;letter-spacing:2px;user-select:none;
+
+  .row-order-btns{
+    position:absolute;left:8px;top:50%;transform:translateY(-50%);
+    display:flex;flex-direction:column;gap:4px;
   }
-  .row-drag-handle:active{cursor:grabbing;}
+  .order-btn{
+    background:none;border:1px solid var(--line);color:var(--plaster-2);
+    width:24px;height:24px;border-radius:3px;cursor:pointer;font-size:13px;
+    display:flex;align-items:center;justify-content:center;padding:0;
+    transition:all .15s;
+  }
+  .order-btn:hover:not(:disabled){border-color:var(--brass-light);color:var(--brass-light);}
+  .order-btn:disabled{opacity:0.2;cursor:default;}
   .field-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:12px;}
   .field-grid.full{grid-template-columns:1fr;}
   .field-grid-img{grid-template-columns:130px 1fr;}
@@ -585,16 +592,18 @@ function renderStudio(){
 
 function fieldRow(item){
   const id = item.id;
+  const idx = state.items.findIndex(i => i.id === id);
+  const isFirst = idx === 0;
+  const isLast = idx === state.items.length - 1;
   const imgStyle = item.imageUrl
     ? `background-image:url('${escapeHtml(item.imageUrl)}');background-size:cover;background-position:center;`
     : `background:${frameBg(item.title)};`;
   return `
-    <div class="item-row" draggable="true"
-      ondragstart="dragStart(event,'${id}')"
-      ondragover="dragOver(event)"
-      ondrop="dragDrop(event,'${id}')"
-      ondragend="dragEnd(event)">
-      <div class="row-drag-handle" title="ドラッグして並び替え">⠿</div>
+    <div class="item-row">
+      <div class="row-order-btns">
+        <button class="order-btn" onclick="moveItem('${id}',-1)" ${isFirst?'disabled':''} title="上へ">▲</button>
+        <button class="order-btn" onclick="moveItem('${id}',1)" ${isLast?'disabled':''} title="下へ">▼</button>
+      </div>
       <div class="field-grid field-grid-img">
         <div class="img-uploader" style="${imgStyle}" tabindex="0" onclick="document.getElementById('f_imgfile_${id}').click()">
           ${!item.imageUrl ? '<span class="img-uploader-hint">クリックで選択<br>またはCtrl+Vで貼り付け</span>' : ''}
@@ -874,41 +883,26 @@ async function removeImage(id){
   }
 }
 
-/* ---------------- drag-and-drop reorder ---------------- */
-let draggedId = null;
-function dragStart(e, id){
-  draggedId = id;
-  e.dataTransfer.effectAllowed = 'move';
-  e.currentTarget.classList.add('dragging');
-}
-function dragOver(e){
-  e.preventDefault();
-  e.dataTransfer.dropEffect = 'move';
-}
-async function dragDrop(e, targetId){
-  e.preventDefault();
-  if(!draggedId || draggedId === targetId) return;
+/* ---------------- arrow-button reorder ---------------- */
+async function moveItem(id, direction){
   const ids = state.items.map(i => i.id);
-  const fromIdx = ids.indexOf(draggedId);
-  const toIdx = ids.indexOf(targetId);
-  if(fromIdx === -1 || toIdx === -1) return;
-  ids.splice(fromIdx, 1);
-  ids.splice(toIdx, 0, draggedId);
+  const idx = ids.indexOf(id);
+  const newIdx = idx + direction;
+  if(newIdx < 0 || newIdx >= ids.length) return;
+  ids.splice(idx, 1);
+  ids.splice(newIdx, 0, id);
   try{
     const batch = db.batch();
-    ids.forEach((itemId, idx) => {
-      batch.update(db.collection('items').doc(itemId), { order: idx });
+    ids.forEach((itemId, i) => {
+      batch.update(db.collection('items').doc(itemId), { order: i });
     });
     await batch.commit();
   }catch(e){
     alert('並び替えの保存に失敗しました。');
+    return;
   }
   await refreshItems();
   render();
-}
-function dragEnd(e){
-  e.currentTarget.classList.remove('dragging');
-  draggedId = null;
 }
 
 /* live label update for visibility switches without full re-render */
