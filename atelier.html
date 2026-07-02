@@ -1,0 +1,685 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Atelier</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+<style>
+  :root{
+    --ink:#16151C;
+    --ink-2:#1D1C24;
+    --ink-3:#26242E;
+    --plaster:#EAE3D6;
+    --plaster-2:#DFD6C4;
+    --brass:#B08D57;
+    --brass-light:#D9B583;
+    --verdigris:#5B8A82;
+    --chalk:#F3EFE6;
+    --charcoal:#2A2620;
+    --danger:#B0685A;
+    --line: rgba(234,227,214,0.14);
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;}
+  .atelier-root{
+    font-family:'Inter',sans-serif;
+    background:
+      radial-gradient(ellipse 900px 500px at 15% -10%, rgba(176,141,87,0.10), transparent),
+      radial-gradient(ellipse 700px 500px at 100% 10%, rgba(91,138,130,0.08), transparent),
+      var(--ink);
+    color:var(--chalk);
+    min-height:100vh;
+    padding-bottom:80px;
+  }
+  .wrap{max-width:1080px;margin:0 auto;padding:0 24px;}
+
+  /* ---------- Top bar ---------- */
+  .topbar{
+    display:flex;align-items:center;justify-content:space-between;
+    padding:28px 0 20px;border-bottom:1px solid var(--line);
+    margin-bottom:8px;
+  }
+  .wordmark{
+    font-family:'Fraunces',serif;font-weight:600;font-size:22px;
+    letter-spacing:0.01em;color:var(--chalk);cursor:pointer;
+    display:flex;align-items:baseline;gap:8px;
+  }
+  .wordmark .dot{color:var(--brass);font-size:22px;line-height:0;}
+  .nav-actions{display:flex;align-items:center;gap:18px;font-size:13px;}
+  .nav-link{
+    color:var(--plaster-2);text-decoration:none;cursor:pointer;
+    font-family:'IBM Plex Mono',monospace;letter-spacing:0.03em;
+    padding:8px 4px;border-bottom:1px solid transparent;transition:all .2s;
+  }
+  .nav-link:hover,.nav-link:focus-visible{color:var(--brass-light);border-bottom-color:var(--brass-light);outline:none;}
+  .nav-link.active{color:var(--brass-light);border-bottom-color:var(--brass);}
+  .avatar-chip{
+    display:flex;align-items:center;gap:8px;font-family:'IBM Plex Mono',monospace;font-size:12px;
+    color:var(--plaster-2);background:var(--ink-2);border:1px solid var(--line);
+    padding:6px 12px 6px 6px;border-radius:999px;
+  }
+  .avatar-chip img{width:22px;height:22px;border-radius:50%;display:block;}
+  .logout-btn{background:none;border:none;color:var(--brass-light);cursor:pointer;font-family:'IBM Plex Mono',monospace;font-size:12px;padding:0;margin-left:4px;}
+
+  /* ---------- Hero ---------- */
+  .hero{padding:56px 0 40px;}
+  .hero .eyebrow{
+    font-family:'IBM Plex Mono',monospace;font-size:12px;letter-spacing:0.12em;
+    color:var(--verdigris);text-transform:uppercase;margin-bottom:14px;
+  }
+  .hero h1{
+    font-family:'Fraunces',serif;font-weight:600;font-size:clamp(36px,6vw,58px);
+    line-height:1.05;margin:0 0 18px;letter-spacing:-0.01em;
+  }
+  .hero p{
+    font-size:16px;line-height:1.7;color:var(--plaster-2);max-width:520px;margin:0;
+  }
+
+  /* ---------- Gallery grid ---------- */
+  .gallery{
+    display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));
+    gap:28px;margin-top:32px;
+  }
+  .frame-outer{perspective:1400px;}
+  .frame{
+    border:1px solid var(--line);border-radius:2px;overflow:hidden;
+    background:var(--ink-2);
+    box-shadow:0 1px 0 rgba(255,255,255,0.03) inset, 0 18px 40px -22px rgba(0,0,0,0.6);
+  }
+  .art{
+    height:168px;position:relative;
+    display:flex;align-items:flex-end;padding:14px;
+  }
+  .art .tagline{
+    font-family:'Fraunces',serif;font-size:20px;font-weight:600;color:var(--chalk);
+    text-shadow:0 2px 12px rgba(0,0,0,0.5);
+  }
+  .status-dot{
+    position:absolute;top:12px;right:12px;width:8px;height:8px;border-radius:50%;
+    box-shadow:0 0 0 3px rgba(0,0,0,0.25);
+  }
+  .status-dot.public{background:var(--brass-light);}
+  .status-dot.private{background:var(--verdigris);}
+
+  .placard-wrap{perspective:900px;}
+  .placard{
+    position:relative;min-height:78px;transition:transform .55s cubic-bezier(.4,.2,.2,1);
+    transform-style:preserve-3d;cursor:pointer;
+  }
+  .placard.flipped{transform:rotateX(180deg);}
+  .placard-face{
+    backface-visibility:hidden;padding:14px 16px;
+  }
+  .placard-front{position:relative;}
+  .placard-back{
+    position:absolute;inset:0;transform:rotateX(180deg);
+    background:var(--ink-3);display:flex;flex-direction:column;justify-content:center;gap:8px;
+  }
+  .p-title{font-family:'Fraunces',serif;font-size:16px;font-weight:600;margin:0 0 4px;}
+  .p-tag{
+    font-family:'IBM Plex Mono',monospace;font-size:10.5px;letter-spacing:0.06em;
+    color:var(--brass-light);text-transform:uppercase;
+  }
+  .p-desc{font-size:13px;color:var(--plaster-2);line-height:1.6;margin:0;}
+  .p-url{
+    font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--verdigris);
+    word-break:break-all;
+  }
+  .open-btn{
+    align-self:flex-start;margin-top:2px;
+    font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:0.04em;
+    color:var(--ink);background:var(--brass-light);border:none;
+    padding:7px 14px;border-radius:999px;cursor:pointer;text-decoration:none;display:inline-block;
+  }
+  .open-btn:hover{background:var(--chalk);}
+  .hint{
+    font-family:'IBM Plex Mono',monospace;font-size:10px;color:rgba(234,227,214,0.35);
+    margin-top:6px;
+  }
+
+  .empty-state{
+    border:1px dashed var(--line);border-radius:4px;padding:60px 24px;text-align:center;
+    color:var(--plaster-2);margin-top:24px;
+  }
+  .empty-state h3{font-family:'Fraunces',serif;color:var(--chalk);font-size:22px;margin:0 0 10px;}
+  .empty-state p{font-size:14px;max-width:360px;margin:0 auto;}
+
+  /* ---------- Studio badge ---------- */
+  .studio-badge{
+    display:inline-flex;align-items:center;gap:8px;font-family:'IBM Plex Mono',monospace;
+    font-size:11px;letter-spacing:0.06em;color:var(--verdigris);border:1px solid rgba(91,138,130,0.4);
+    padding:6px 12px;border-radius:999px;margin-bottom:18px;text-transform:uppercase;
+  }
+  .studio-badge .dot{width:6px;height:6px;border-radius:50%;background:var(--verdigris);}
+
+  /* ---------- Desk (admin) ---------- */
+  .desk-toolbar{display:flex;justify-content:space-between;align-items:center;margin:28px 0 20px;}
+  .btn{
+    font-family:'IBM Plex Mono',monospace;font-size:12px;letter-spacing:0.03em;
+    border:1px solid var(--brass);color:var(--brass-light);background:transparent;
+    padding:9px 16px;border-radius:4px;cursor:pointer;transition:all .2s;
+  }
+  .btn:hover{background:var(--brass);color:var(--ink);}
+  .btn.primary{background:var(--brass-light);color:var(--ink);border-color:var(--brass-light);}
+  .btn.primary:hover{background:var(--chalk);}
+  .btn.danger{border-color:var(--danger);color:var(--danger);}
+  .btn.danger:hover{background:var(--danger);color:var(--chalk);}
+  .btn.small{padding:6px 12px;font-size:11px;}
+
+  .item-row{
+    border:1px solid var(--line);border-radius:4px;padding:20px;margin-bottom:14px;background:var(--ink-2);
+  }
+  .field-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:12px;}
+  .field-grid.full{grid-template-columns:1fr;}
+  label{
+    display:block;font-family:'IBM Plex Mono',monospace;font-size:10.5px;letter-spacing:0.06em;
+    color:var(--plaster-2);text-transform:uppercase;margin-bottom:6px;
+  }
+  input[type=text],textarea{
+    width:100%;background:var(--ink);border:1px solid var(--line);color:var(--chalk);
+    padding:10px 12px;border-radius:3px;font-family:'Inter',sans-serif;font-size:14px;
+  }
+  input[type=text]:focus,textarea:focus{outline:none;border-color:var(--brass-light);}
+  textarea{resize:vertical;min-height:64px;}
+  .row-footer{display:flex;justify-content:space-between;align-items:center;margin-top:8px;}
+
+  .toggle{display:flex;align-items:center;gap:10px;font-family:'IBM Plex Mono',monospace;font-size:11.5px;}
+  .switch{position:relative;width:40px;height:22px;}
+  .switch input{opacity:0;width:0;height:0;}
+  .slider{
+    position:absolute;cursor:pointer;inset:0;background:var(--ink-3);border:1px solid var(--line);
+    border-radius:999px;transition:.2s;
+  }
+  .slider:before{
+    content:"";position:absolute;height:14px;width:14px;left:3px;top:3px;background:var(--plaster-2);
+    border-radius:50%;transition:.2s;
+  }
+  input:checked + .slider{background:rgba(176,141,87,0.35);border-color:var(--brass);}
+  input:checked + .slider:before{transform:translateX(18px);background:var(--brass-light);}
+
+  .row-actions{display:flex;gap:8px;}
+
+  /* ---------- Modal ---------- */
+  .modal-backdrop{
+    position:fixed;inset:0;background:rgba(10,9,13,0.72);display:flex;align-items:center;justify-content:center;
+    z-index:50;padding:24px;
+  }
+  .modal{
+    background:var(--ink-2);border:1px solid var(--line);border-radius:6px;padding:36px 32px;
+    max-width:380px;width:100%;text-align:center;
+  }
+  .modal h3{font-family:'Fraunces',serif;font-size:22px;margin:0 0 10px;}
+  .modal p{font-size:13.5px;color:var(--plaster-2);line-height:1.6;margin:0 0 24px;}
+  .gsi-holder{display:flex;justify-content:center;margin-bottom:14px;min-height:44px;}
+  .modal .close{
+    background:none;border:none;color:var(--plaster-2);font-family:'IBM Plex Mono',monospace;
+    font-size:11px;cursor:pointer;text-decoration:underline;
+  }
+  .denied{color:var(--danger);font-family:'IBM Plex Mono',monospace;font-size:12px;margin-top:10px;}
+
+  @media (max-width:640px){
+    .field-grid{grid-template-columns:1fr;}
+    .topbar{flex-wrap:wrap;gap:12px;}
+  }
+  @media (prefers-reduced-motion: reduce){
+    .placard{transition:none;}
+  }
+</style>
+</head>
+<body>
+<div class="atelier-root">
+  <div class="wrap">
+    <div class="topbar">
+      <div class="wordmark" onclick="goTo('public')">The Atelier<span class="dot">·</span></div>
+      <div class="nav-actions" id="navActions"></div>
+    </div>
+    <div id="viewContainer"></div>
+  </div>
+</div>
+<div id="modalContainer"></div>
+
+<script>
+const GOOGLE_CLIENT_ID = "365457763047-cf2k4me29mvq851jlhiqc1144gutnrna.apps.googleusercontent.com";
+const ADMIN_EMAIL = "gansuidou1@gmail.com";
+
+let state = {
+  view: 'public',        // 'public' | 'studio' | 'desk'
+  items: [],
+  loaded: false,
+  authEmail: null,
+  authName: null,
+  authPicture: null,
+  deniedEmail: null,
+  showLoginModal: false,
+  flippedId: null,
+  editingId: null,
+  showAddForm: false,
+};
+
+/* ---------------- storage ---------------- */
+async function loadItems(){
+  try{
+    const res = await window.storage.get('gallery-items', true);
+    state.items = res ? JSON.parse(res.value) : [];
+  }catch(e){
+    state.items = [];
+  }
+  if(state.items.length === 0){
+    let seeded = false;
+    try{
+      const flag = await window.storage.get('gallery-seeded', true);
+      seeded = !!flag;
+    }catch(e){ seeded = false; }
+    if(!seeded){
+      state.items = [
+        {
+          id: cryptoId(),
+          title: 'サンプル作品A',
+          url: 'https://example.com',
+          description: 'ここに作品の説明を書きます。編集ページから内容を書き換えたり削除したりできます。',
+          tags: 'Web App',
+          visibility: 'public',
+          createdAt: Date.now()
+        },
+        {
+          id: cryptoId(),
+          title: '非公開の下書き',
+          url: 'https://example.com',
+          description: '公開範囲を「非公開」にすると、あなたのみ閲覧できます。',
+          tags: 'Prototype',
+          visibility: 'private',
+          createdAt: Date.now()
+        }
+      ];
+      await saveItems();
+      try{ await window.storage.set('gallery-seeded', 'true', true); }catch(e){}
+    }
+  }
+  state.loaded = true;
+}
+async function saveItems(){
+  try{
+    await window.storage.set('gallery-items', JSON.stringify(state.items), true);
+  }catch(e){
+    alert('保存に失敗しました。通信状態を確認してもう一度お試しください。');
+  }
+}
+function cryptoId(){
+  return 'it_' + Math.random().toString(36).slice(2,10) + Date.now().toString(36);
+}
+
+/* ---------------- auth ---------------- */
+function parseJwt(token){
+  const base64 = token.split('.')[1].replace(/-/g,'+').replace(/_/g,'/');
+  const json = decodeURIComponent(atob(base64).split('').map(c=>'%'+('00'+c.charCodeAt(0).toString(16)).slice(-2)).join(''));
+  return JSON.parse(json);
+}
+function handleCredential(response){
+  try{
+    const payload = parseJwt(response.credential);
+    if(payload.email === ADMIN_EMAIL){
+      state.authEmail = payload.email;
+      state.authName = payload.name;
+      state.authPicture = payload.picture;
+      state.deniedEmail = null;
+      state.showLoginModal = false;
+      render();
+    }else{
+      state.deniedEmail = payload.email;
+      render();
+    }
+  }catch(e){
+    state.deniedEmail = '(読み取りエラー)';
+    render();
+  }
+}
+function initGoogle(){
+  if(typeof google === 'undefined' || !google.accounts){
+    setTimeout(initGoogle, 300);
+    return;
+  }
+  google.accounts.id.initialize({
+    client_id: GOOGLE_CLIENT_ID,
+    callback: handleCredential
+  });
+  const holder = document.getElementById('gsiHolder');
+  if(holder){
+    google.accounts.id.renderButton(holder, { theme:'filled_black', size:'large', shape:'pill', text:'signin_with' });
+  }
+}
+function logout(){
+  state.authEmail = null;
+  state.authName = null;
+  state.authPicture = null;
+  goTo('public');
+}
+function isAdmin(){ return state.authEmail === ADMIN_EMAIL; }
+
+/* ---------------- navigation ---------------- */
+function goTo(view){
+  if((view === 'studio' || view === 'desk') && !isAdmin()){
+    state.showLoginModal = true;
+    render();
+    setTimeout(initGoogle, 50);
+    return;
+  }
+  state.view = view;
+  state.showAddForm = false;
+  state.editingId = null;
+  render();
+}
+function closeModal(){
+  state.showLoginModal = false;
+  state.deniedEmail = null;
+  render();
+}
+
+/* ---------------- rendering helpers ---------------- */
+const HUE_PALETTES = [[220,42],[175,44],[258,32],[198,168]];
+function hashCode(str){
+  let h = 0;
+  for(let i=0;i<str.length;i++){ h = str.charCodeAt(i) + ((h<<5)-h); h |= 0; }
+  return Math.abs(h);
+}
+function frameBg(title){
+  const h = hashCode(title || 'untitled');
+  const pal = HUE_PALETTES[h % HUE_PALETTES.length];
+  const angle = h % 360;
+  const pos = 25 + (h % 45);
+  return `conic-gradient(from ${angle}deg at ${pos}% ${pos}%, hsl(${pal[0]} 30% 16%), hsl(${pal[1]} 26% 11%), hsl(${pal[0]} 28% 14%))`;
+}
+function escapeHtml(s){
+  const d = document.createElement('div');
+  d.innerText = s || '';
+  return d.innerHTML;
+}
+
+function toggleFlip(id){
+  state.flippedId = state.flippedId === id ? null : id;
+  render();
+}
+
+function renderCard(item, showStatus){
+  const bg = frameBg(item.title);
+  const flipped = state.flippedId === item.id;
+  const statusDot = showStatus ? `<div class="status-dot ${item.visibility}"></div>` : '';
+  return `
+    <div class="frame-outer">
+      <div class="frame">
+        <div class="art" style="background:${bg}">
+          ${statusDot}
+          <div class="tagline">${escapeHtml(item.title)}</div>
+        </div>
+      </div>
+      <div class="placard-wrap">
+        <div class="placard ${flipped?'flipped':''}" onclick="toggleFlip('${item.id}')">
+          <div class="placard-face placard-front">
+            <div class="p-title">${escapeHtml(item.title)}</div>
+            ${item.tags ? `<div class="p-tag">${escapeHtml(item.tags)}</div>` : ''}
+            <div class="hint">タップして詳細を見る</div>
+          </div>
+          <div class="placard-face placard-back">
+            <p class="p-desc">${escapeHtml(item.description || '説明はまだありません。')}</p>
+            <div class="p-url">${escapeHtml(item.url)}</div>
+            <a class="open-btn" href="${escapeHtml(item.url)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">開く ↗</a>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function renderPublic(){
+  const items = state.items.filter(i => i.visibility === 'public').sort((a,b)=>b.createdAt-a.createdAt);
+  return `
+    <div class="hero">
+      <div class="eyebrow">Exhibition — Open to all</div>
+      <h1>作ったものを、<br>ひとつずつ並べる場所。</h1>
+      <p>個人で開発したアプリやサイトを展示しています。気になるものはタップすると詳細が開きます。</p>
+    </div>
+    ${items.length === 0 ? `
+      <div class="empty-state">
+        <h3>まだ展示がありません</h3>
+        <p>作品が追加されると、ここに並びます。</p>
+      </div>
+    ` : `<div class="gallery">${items.map(i=>renderCard(i,false)).join('')}</div>`}
+  `;
+}
+
+function renderStudio(){
+  const items = [...state.items].sort((a,b)=>b.createdAt-a.createdAt);
+  return `
+    <div class="hero" style="padding-top:36px;padding-bottom:0;">
+      <div class="studio-badge"><span class="dot"></span>Studio — 非公開閲覧</div>
+      <h1 style="font-size:clamp(28px,4vw,38px);">すべての作品</h1>
+      <p>公開・非公開すべてのアイテムを確認できます。金色は公開、緑は非公開です。</p>
+    </div>
+    ${items.length === 0 ? `
+      <div class="empty-state">
+        <h3>作品がまだありません</h3>
+        <p>「デスク」から最初の作品を追加しましょう。</p>
+      </div>
+    ` : `<div class="gallery">${items.map(i=>renderCard(i,true)).join('')}</div>`}
+  `;
+}
+
+function fieldRow(item){
+  const id = item.id;
+  return `
+    <div class="item-row">
+      <div class="field-grid">
+        <div>
+          <label>タイトル</label>
+          <input type="text" id="f_title_${id}" value="${escapeHtml(item.title)}">
+        </div>
+        <div>
+          <label>タグ / カテゴリ</label>
+          <input type="text" id="f_tags_${id}" value="${escapeHtml(item.tags)}">
+        </div>
+      </div>
+      <div class="field-grid full">
+        <div>
+          <label>URL</label>
+          <input type="text" id="f_url_${id}" value="${escapeHtml(item.url)}">
+        </div>
+      </div>
+      <div class="field-grid full">
+        <div>
+          <label>説明</label>
+          <textarea id="f_desc_${id}">${escapeHtml(item.description)}</textarea>
+        </div>
+      </div>
+      <div class="row-footer">
+        <div class="toggle">
+          <label class="switch">
+            <input type="checkbox" id="f_vis_${id}" ${item.visibility==='public'?'checked':''}>
+            <span class="slider"></span>
+          </label>
+          <span id="f_vis_label_${id}">${item.visibility==='public' ? '公開中（誰でも見られます）' : '非公開（あなただけ）'}</span>
+        </div>
+        <div class="row-actions">
+          <button class="btn primary small" onclick="saveItem('${id}')">保存</button>
+          <button class="btn danger small" onclick="deleteItem('${id}')">削除</button>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function renderAddForm(){
+  if(!state.showAddForm) return '';
+  return `
+    <div class="item-row" style="border-color:var(--brass);">
+      <div class="field-grid">
+        <div>
+          <label>タイトル</label>
+          <input type="text" id="new_title" placeholder="例）家計簿アプリ">
+        </div>
+        <div>
+          <label>タグ / カテゴリ</label>
+          <input type="text" id="new_tags" placeholder="例）Web App">
+        </div>
+      </div>
+      <div class="field-grid full">
+        <div>
+          <label>URL</label>
+          <input type="text" id="new_url" placeholder="https://...">
+        </div>
+      </div>
+      <div class="field-grid full">
+        <div>
+          <label>説明</label>
+          <textarea id="new_desc" placeholder="どんなものか、ひとことで"></textarea>
+        </div>
+      </div>
+      <div class="row-footer">
+        <div class="toggle">
+          <label class="switch">
+            <input type="checkbox" id="new_vis" checked>
+            <span class="slider"></span>
+          </label>
+          <span id="new_vis_label">公開中（誰でも見られます）</span>
+        </div>
+        <div class="row-actions">
+          <button class="btn small" onclick="cancelAdd()">キャンセル</button>
+          <button class="btn primary small" onclick="addItem()">追加する</button>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function renderDesk(){
+  const items = [...state.items].sort((a,b)=>b.createdAt-a.createdAt);
+  return `
+    <div class="desk-toolbar">
+      <div class="studio-badge"><span class="dot"></span>Studio — 編集</div>
+    </div>
+    <div class="row-footer" style="margin-bottom:18px;">
+      <div></div>
+      <button class="btn primary" onclick="toggleAddForm()">＋ 新しい作品を追加</button>
+    </div>
+    ${renderAddForm()}
+    ${items.length === 0 && !state.showAddForm ? `
+      <div class="empty-state">
+        <h3>まだ作品がありません</h3>
+        <p>「＋ 新しい作品を追加」から最初の一つを登録しましょう。</p>
+      </div>
+    ` : items.map(fieldRow).join('')}
+  `;
+}
+
+function toggleAddForm(){ state.showAddForm = !state.showAddForm; render(); }
+function cancelAdd(){ state.showAddForm = false; render(); }
+
+async function addItem(){
+  const title = document.getElementById('new_title').value.trim();
+  const url = document.getElementById('new_url').value.trim();
+  if(!title || !url){ alert('タイトルとURLは必須です。'); return; }
+  const item = {
+    id: cryptoId(),
+    title,
+    url,
+    description: document.getElementById('new_desc').value.trim(),
+    tags: document.getElementById('new_tags').value.trim(),
+    visibility: document.getElementById('new_vis').checked ? 'public' : 'private',
+    createdAt: Date.now()
+  };
+  state.items.push(item);
+  await saveItems();
+  state.showAddForm = false;
+  render();
+}
+async function saveItem(id){
+  const item = state.items.find(i=>i.id===id);
+  if(!item) return;
+  item.title = document.getElementById(`f_title_${id}`).value.trim();
+  item.url = document.getElementById(`f_url_${id}`).value.trim();
+  item.description = document.getElementById(`f_desc_${id}`).value.trim();
+  item.tags = document.getElementById(`f_tags_${id}`).value.trim();
+  item.visibility = document.getElementById(`f_vis_${id}`).checked ? 'public' : 'private';
+  await saveItems();
+  render();
+}
+async function deleteItem(id){
+  if(!confirm('この作品を削除します。よろしいですか？')) return;
+  state.items = state.items.filter(i=>i.id!==id);
+  await saveItems();
+  render();
+}
+
+/* live label update for visibility switches without full re-render */
+document.addEventListener('change', (e)=>{
+  if(e.target.id === 'new_vis'){
+    document.getElementById('new_vis_label').innerText = e.target.checked ? '公開中（誰でも見られます）' : '非公開（あなただけ）';
+  }
+  if(e.target.id && e.target.id.startsWith('f_vis_')){
+    const id = e.target.id.replace('f_vis_','');
+    const label = document.getElementById(`f_vis_label_${id}`);
+    if(label) label.innerText = e.target.checked ? '公開中（誰でも見られます）' : '非公開（あなただけ）';
+  }
+});
+
+/* ---------------- nav / modal ---------------- */
+function renderNav(){
+  const nav = document.getElementById('navActions');
+  if(isAdmin()){
+    nav.innerHTML = `
+      <span class="nav-link ${state.view==='public'?'active':''}" onclick="goTo('public')">公開ページ</span>
+      <span class="nav-link ${state.view==='studio'?'active':''}" onclick="goTo('studio')">ギャラリー</span>
+      <span class="nav-link ${state.view==='desk'?'active':''}" onclick="goTo('desk')">デスク</span>
+      <div class="avatar-chip">
+        <img src="${state.authPicture||''}" alt="">
+        <span>${escapeHtml(state.authName||'')}</span>
+        <button class="logout-btn" onclick="logout()">ログアウト</button>
+      </div>
+    `;
+  }else{
+    nav.innerHTML = `<span class="nav-link" onclick="goTo('studio')">Studio →</span>`;
+  }
+}
+
+function renderModal(){
+  const c = document.getElementById('modalContainer');
+  if(!state.showLoginModal){ c.innerHTML=''; return; }
+  c.innerHTML = `
+    <div class="modal-backdrop" onclick="if(event.target===this) closeModal()">
+      <div class="modal">
+        <h3>Studio Access</h3>
+        <p>このエリアは制作者のみアクセスできます。<br>Googleアカウントでサインインしてください。</p>
+        <div class="gsi-holder" id="gsiHolder"></div>
+        ${state.deniedEmail ? `<div class="denied">「${escapeHtml(state.deniedEmail)}」ではアクセスできません。</div>` : ''}
+        <button class="close" onclick="closeModal()">公開ページに戻る</button>
+      </div>
+    </div>
+  `;
+  initGoogle();
+}
+
+/* ---------------- main render ---------------- */
+function render(){
+  renderNav();
+  const c = document.getElementById('viewContainer');
+  if(!state.loaded){
+    c.innerHTML = `<div class="hero"><p>読み込み中…</p></div>`;
+  }else if(state.view === 'studio' && isAdmin()){
+    c.innerHTML = renderStudio();
+  }else if(state.view === 'desk' && isAdmin()){
+    c.innerHTML = renderDesk();
+  }else{
+    c.innerHTML = renderPublic();
+  }
+  renderModal();
+}
+
+(async function init(){
+  render();
+  await loadItems();
+  render();
+})();
+</script>
+</body>
+</html>
