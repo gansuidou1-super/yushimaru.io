@@ -888,17 +888,21 @@ async function moveItem(id, direction){
   const ids = state.items.map(i => i.id);
   const idx = ids.indexOf(id);
   const newIdx = idx + direction;
+  console.log('moveItem', id, direction, 'idx:', idx, 'newIdx:', newIdx, 'total:', ids.length);
   if(newIdx < 0 || newIdx >= ids.length) return;
   ids.splice(idx, 1);
   ids.splice(newIdx, 0, id);
+  console.log('new order:', ids);
   try{
     const batch = db.batch();
     ids.forEach((itemId, i) => {
       batch.update(db.collection('items').doc(itemId), { order: i });
     });
     await batch.commit();
+    console.log('batch commit OK');
   }catch(e){
-    alert('並び替えの保存に失敗しました。');
+    console.error('batch error:', e);
+    alert('並び替えの保存に失敗しました: ' + e.message);
     return;
   }
   await refreshItems();
