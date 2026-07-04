@@ -216,17 +216,16 @@
   .btn.small{padding:6px 12px;font-size:11px;}
 
   .item-row{
-    border:1px solid var(--line);border-radius:4px;padding:20px 20px 20px 40px;margin-bottom:14px;
+    border:1px solid var(--line);border-radius:4px;padding:20px;margin-bottom:14px;
     background:var(--ink-2);position:relative;transition:opacity .2s;
   }
-
   .row-order-btns{
-    position:absolute;left:8px;top:50%;transform:translateY(-50%);
-    display:flex;flex-direction:column;gap:4px;
+    position:absolute;top:12px;right:12px;
+    display:flex;flex-direction:row;gap:4px;
   }
   .order-btn{
     background:none;border:1px solid var(--line);color:var(--plaster-2);
-    width:24px;height:24px;border-radius:3px;cursor:pointer;font-size:13px;
+    width:28px;height:28px;border-radius:3px;cursor:pointer;font-size:12px;
     display:flex;align-items:center;justify-content:center;padding:0;
     transition:all .15s;
   }
@@ -601,8 +600,8 @@ function fieldRow(item){
   return `
     <div class="item-row">
       <div class="row-order-btns">
-        <button class="order-btn" onclick="moveItem('${id}',-1)" ${isFirst?'disabled':''} title="上へ">▲</button>
-        <button class="order-btn" onclick="moveItem('${id}',1)" ${isLast?'disabled':''} title="下へ">▼</button>
+        <button class="order-btn" onclick="moveItem('${id}',-1)" ${isFirst?'disabled':''} title="上へ">↑</button>
+        <button class="order-btn" onclick="moveItem('${id}',1)" ${isLast?'disabled':''} title="下へ">↓</button>
       </div>
       <div class="field-grid field-grid-img">
         <div class="img-uploader" style="${imgStyle}" tabindex="0" onclick="document.getElementById('f_imgfile_${id}').click()">
