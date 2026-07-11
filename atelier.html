@@ -7,9 +7,9 @@
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%2316151C'/%3E%3Crect x='16' y='16' width='32' height='32' fill='none' stroke='%23B08D57' stroke-width='4'/%3E%3Ccircle cx='20' cy='20' r='2.5' fill='%23B08D57'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <style>
   :root{
@@ -386,19 +386,8 @@ async function maybeSeed(){
 
 /* ---------------- auth (Firebase) ---------------- */
 function requestSignIn(){
-  auth.signInWithRedirect(provider);
-}
-function logout(){
-  auth.signOut();
-  state.authEmail = null;
-  state.authName = null;
-  state.authPicture = null;
-  refreshItems().then(() => goTo('public'));
-}
-function isAdmin(){ return state.authEmail === ADMIN_EMAIL; }
-
-auth.getRedirectResult().then(async (result) => {
-  if(result && result.user){
+  // signInWithPopupはタップイベントの同期コンテキストで呼ぶ必要がある（スマホのポップアップブロック対策）
+  auth.signInWithPopup(provider).then(async (result) => {
     const email = result.user.email;
     if(email === ADMIN_EMAIL){
       state.authEmail = email;
@@ -414,10 +403,20 @@ auth.getRedirectResult().then(async (result) => {
       auth.signOut();
       render();
     }
-  }
-}).catch((err) => {
-  console.error('redirect result error:', err.code, err.message);
-});
+  }).catch((err) => {
+    console.error('popup error:', err.code, err.message);
+    state.deniedEmail = 'エラー: ' + err.code;
+    render();
+  });
+}
+function logout(){
+  auth.signOut();
+  state.authEmail = null;
+  state.authName = null;
+  state.authPicture = null;
+  refreshItems().then(() => goTo('public'));
+}
+function isAdmin(){ return state.authEmail === ADMIN_EMAIL; }
 
 auth.onAuthStateChanged(async (user) => {
   if(user && user.email === ADMIN_EMAIL){
