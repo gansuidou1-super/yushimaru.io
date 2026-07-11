@@ -1,4 +1,4 @@
-const CACHE_NAME = 'mikkecho-cache-v1';
+const CACHE_NAME = 'mikkecho-cache-v2';
 const ASSETS = [
   './',
   './index.html',
