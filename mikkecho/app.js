@@ -18,10 +18,26 @@
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
       if (!raw) return defaultState();
-      return Object.assign(defaultState(), JSON.parse(raw));
+      const parsed = Object.assign(defaultState(), JSON.parse(raw));
+      migratePhotos(parsed);
+      return parsed;
     } catch (e) {
       return defaultState();
     }
+  }
+
+  function migratePhotos(s) {
+    // old records stored a single `photo` string; convert to `photos` array.
+    Object.values(s.founds || {}).forEach(rec => {
+      if (!rec.photos) rec.photos = rec.photo ? [rec.photo] : [];
+      delete rec.photo;
+    });
+    Object.values(s.userEntries || {}).forEach(list => {
+      (list || []).forEach(rec => {
+        if (!rec.photos) rec.photos = rec.photo ? [rec.photo] : [];
+        delete rec.photo;
+      });
+    });
   }
   function saveState() {
     try {
@@ -223,7 +239,7 @@
         card.className = 'spot-card ' + (rec ? 'found' : 'undiscovered');
         if (rec) {
           card.innerHTML = `
-             ${rec.photo ? `<img class="thumb" src="${rec.photo}">` : `<div class="thumb">🀆</div>`}
+             ${rec.photos && rec.photos[0] ? `<img class="thumb" src="${rec.photos[0]}">` : `<div class="thumb">🀆</div>`}
              <span class="stamp-badge">✓</span>
              <div class="spot-name">${escapeHtml(entry.name)}</div>`;
           card.addEventListener('click', () => openSpotDetail(entry.id, cat.id, 'preset'));
@@ -245,7 +261,7 @@
       const card = document.createElement('div');
       card.className = 'spot-card found';
       card.innerHTML = `
-        ${entry.photo ? `<img class="thumb" src="${entry.photo}">` : `<div class="thumb">🀆</div>`}
+        ${entry.photos && entry.photos[0] ? `<img class="thumb" src="${entry.photos[0]}">` : `<div class="thumb">🀆</div>`}
         <span class="stamp-badge">✓</span>
         <div class="spot-name">${escapeHtml(entry.name)}</div>`;
       card.addEventListener('click', () => openSpotDetail(entry.id, cat.id, 'user'));
@@ -268,54 +284,79 @@
   const findModalHint = document.getElementById('findModalHint');
   const freeNameField = document.getElementById('freeNameField');
   const freeNameInput = document.getElementById('freeNameInput');
-  const photoPicker = document.getElementById('photoPicker');
+  const photoGrid = document.getElementById('photoGrid');
   const photoInput = document.getElementById('photoInput');
   const haikuInput = document.getElementById('haikuInput');
+  const findSaveBtn = document.getElementById('findSaveBtn');
   let findContext = null;
-  let pendingPhotoDataUrl = null;
+  let pendingPhotos = [];
+  const MAX_PHOTOS = 6;
 
-  function resetPhotoPicker() {
-    pendingPhotoDataUrl = null;
-    photoPicker.innerHTML = `<span class="icon">📷</span><span>タップして写真を撮る・選ぶ</span>`;
-    photoPicker.appendChild(photoInput);
+  function renderPhotoGrid() {
+    photoGrid.innerHTML = '';
+    pendingPhotos.forEach((src, idx) => {
+      const tile = document.createElement('div');
+      tile.className = 'photo-thumb';
+      tile.innerHTML = `<img src="${src}"><button type="button" class="remove-btn">×</button>`;
+      tile.querySelector('.remove-btn').addEventListener('click', () => {
+        pendingPhotos.splice(idx, 1);
+        renderPhotoGrid();
+      });
+      photoGrid.appendChild(tile);
+    });
+    if (pendingPhotos.length < MAX_PHOTOS) {
+      const addTile = document.createElement('button');
+      addTile.type = 'button';
+      addTile.className = 'photo-add-tile';
+      addTile.innerHTML = `<span class="icon">📷</span><span>${pendingPhotos.length ? '追加' : '撮る・選ぶ'}</span>`;
+      addTile.addEventListener('click', () => photoInput.click());
+      photoGrid.appendChild(addTile);
+    }
   }
 
   function openFindModal(ctx) {
     findContext = ctx;
-    haikuInput.value = '';
-    freeNameInput.value = '';
-    resetPhotoPicker();
+    haikuInput.value = ctx.editRecord ? (ctx.editRecord.haiku || '') : '';
+    freeNameInput.value = ctx.editRecord ? (ctx.editRecord.name || '') : '';
+    pendingPhotos = ctx.editRecord && ctx.editRecord.photos ? ctx.editRecord.photos.slice() : [];
+    renderPhotoGrid();
+
     if (ctx.mode === 'checklist') {
-      findModalTitle.textContent = ctx.name;
+      findModalTitle.textContent = ctx.editRecord ? `${ctx.name} を編集` : ctx.name;
       findModalHint.textContent = ctx.hint ? '📍 ' + ctx.hint : '';
       freeNameField.style.display = 'none';
     } else {
-      findModalTitle.textContent = '新しく見つけた';
-      findModalHint.textContent = 'この図鑑に追加します';
+      findModalTitle.textContent = ctx.editRecord ? '記録を編集' : '新しく見つけた';
+      findModalHint.textContent = ctx.editRecord ? '' : 'この図鑑に追加します';
       freeNameField.style.display = 'block';
     }
+    findSaveBtn.textContent = ctx.editRecord ? '更新する' : '記録する';
     findModalBackdrop.classList.add('open');
   }
   function closeFindModal() {
     findModalBackdrop.classList.remove('open');
     findContext = null;
+    pendingPhotos = [];
   }
   document.getElementById('findCancelBtn').addEventListener('click', closeFindModal);
   findModalBackdrop.addEventListener('click', (e) => { if (e.target === findModalBackdrop) closeFindModal(); });
 
-  photoPicker.addEventListener('click', () => photoInput.click());
   photoInput.addEventListener('change', () => {
-    const file = photoInput.files && photoInput.files[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      compressImage(e.target.result, 900, 0.72).then(dataUrl => {
-        pendingPhotoDataUrl = dataUrl;
-        photoPicker.innerHTML = `<img src="${dataUrl}">`;
-        photoPicker.appendChild(photoInput);
-      });
-    };
-    reader.readAsDataURL(file);
+    const files = Array.from(photoInput.files || []);
+    if (!files.length) return;
+    const room = MAX_PHOTOS - pendingPhotos.length;
+    const toProcess = files.slice(0, Math.max(0, room));
+    Promise.all(toProcess.map(file => new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        compressImage(e.target.result, 900, 0.72).then(resolve);
+      };
+      reader.readAsDataURL(file);
+    }))).then(dataUrls => {
+      pendingPhotos.push(...dataUrls);
+      renderPhotoGrid();
+    });
+    photoInput.value = '';
   });
 
   function compressImage(srcDataUrl, maxDim, quality) {
@@ -338,36 +379,48 @@
     });
   }
 
-  document.getElementById('findSaveBtn').addEventListener('click', () => {
+  findSaveBtn.addEventListener('click', () => {
     if (!findContext) return;
     const haiku = haikuInput.value.trim();
+    const isEdit = !!findContext.editRecord;
     const now = new Date();
-    const record = {
-      photo: pendingPhotoDataUrl || null,
-      haiku: haiku,
-      date: todayStr(),
-      ts: now.getTime(),
-    };
 
     if (findContext.mode === 'checklist') {
-      record.categoryId = findContext.categoryId;
-      state.founds[findContext.entryId] = record;
+      const existing = state.founds[findContext.entryId];
+      state.founds[findContext.entryId] = {
+        photos: pendingPhotos.slice(),
+        haiku: haiku,
+        date: existing ? existing.date : todayStr(),
+        ts: existing ? existing.ts : now.getTime(),
+        categoryId: findContext.categoryId,
+      };
     } else {
       const name = freeNameInput.value.trim();
       if (!name) { freeNameInput.focus(); return; }
       const catId = findContext.categoryId;
       if (!state.userEntries[catId]) state.userEntries[catId] = [];
-      state.userEntries[catId].push(Object.assign({ id: uid('ue'), name }, record));
+      if (isEdit) {
+        const rec = state.userEntries[catId].find(e => e.id === findContext.editRecord.id);
+        if (rec) {
+          rec.name = name;
+          rec.photos = pendingPhotos.slice();
+          rec.haiku = haiku;
+        }
+      } else {
+        state.userEntries[catId].push({
+          id: uid('ue'), name, photos: pendingPhotos.slice(), haiku, date: todayStr(), ts: now.getTime(),
+        });
+      }
     }
     saveState();
     closeFindModal();
-    playStamp();
+    if (!isEdit) playStamp();
     const newly = checkAchievements();
     renderAll();
     if (newly.length) {
       showToast(`称号「${newly[0].name}」を獲得しました 🎖️`);
     } else {
-      showToast('記録しました 🖋️');
+      showToast(isEdit ? '更新しました 🖋️' : '記録しました 🖋️');
     }
   });
 
@@ -379,6 +432,7 @@
   const spotDetailHint = document.getElementById('spotDetailHint');
   const spotDetailBody = document.getElementById('spotDetailBody');
   const spotDeleteBtn = document.getElementById('spotDeleteBtn');
+  const spotEditBtn = document.getElementById('spotEditBtn');
   let spotDetailCtx = null;
 
   function openSpotDetail(entryId, categoryId, kind) {
@@ -392,11 +446,12 @@
       entry = cat.entries.find(e => e.id === entryId);
       rec = state.founds[entryId];
     }
-    spotDetailCtx = { entryId, categoryId, kind };
+    spotDetailCtx = { entryId, categoryId, kind, entry, rec };
     spotDetailName.textContent = entry.name;
     spotDetailHint.textContent = (kind === 'preset' && entry.hint) ? '📍 ' + entry.hint : '';
+    const photos = rec.photos || [];
     spotDetailBody.innerHTML = `
-      ${rec.photo ? `<img class="detail-photo" src="${rec.photo}">` : ''}
+      ${photos.length ? `<div class="detail-photo-scroll">${photos.map(p => `<img src="${p}">`).join('')}</div>` : ''}
       <div class="detail-haiku">${escapeHtml(rec.haiku || '(一言なし)')}</div>
       <div class="detail-meta">${rec.date} に記録</div>
     `;
@@ -404,6 +459,17 @@
   }
   document.getElementById('spotCloseBtn').addEventListener('click', () => spotDetailBackdrop.classList.remove('open'));
   spotDetailBackdrop.addEventListener('click', (e) => { if (e.target === spotDetailBackdrop) spotDetailBackdrop.classList.remove('open'); });
+
+  spotEditBtn.addEventListener('click', () => {
+    if (!spotDetailCtx) return;
+    const { kind, categoryId, entryId, entry, rec } = spotDetailCtx;
+    spotDetailBackdrop.classList.remove('open');
+    if (kind === 'preset') {
+      openFindModal({ mode: 'checklist', entryId, categoryId, name: entry.name, hint: entry.hint, editRecord: rec });
+    } else {
+      openFindModal({ mode: 'user_extra', categoryId, editRecord: rec });
+    }
+  });
 
   spotDeleteBtn.addEventListener('click', () => {
     if (!spotDetailCtx) return;
@@ -476,11 +542,11 @@
       if (cat.type === 'checklist') {
         cat.entries.forEach(entry => {
           const rec = state.founds[entry.id];
-          if (rec) list.push({ spotName: entry.name, categoryName: cat.name, ...rec });
+          if (rec) list.push({ spotName: entry.name, categoryName: cat.name, categoryId: cat.id, entryId: entry.id, kind: 'preset', ...rec });
         });
       }
       getUserEntries(cat.id).forEach(entry => {
-        list.push({ spotName: entry.name, categoryName: cat.name, ...entry });
+        list.push({ spotName: entry.name, categoryName: cat.name, categoryId: cat.id, entryId: entry.id, kind: 'user', ...entry });
       });
     });
     list.sort((a, b) => (b.ts || 0) - (a.ts || 0));
@@ -493,10 +559,12 @@
     kushuCountHintEl.textContent = finds.length ? `${finds.length} 句` : '';
     kushuEmptyEl.style.display = finds.length ? 'none' : 'block';
     finds.forEach(f => {
+      const photos = f.photos || [];
       const card = document.createElement('div');
       card.className = 'haiku-card';
       card.innerHTML = `
-        ${f.photo ? `<img class="photo" src="${f.photo}">` : `<div class="photo-placeholder">🀆</div>`}
+        ${photos.length ? `<img class="photo" src="${photos[0]}">` : `<div class="photo-placeholder">🀆</div>`}
+        ${photos.length > 1 ? `<span class="photo-count-badge">📷 ${photos.length}</span>` : ''}
         <div class="body">
           <div class="spot-name">${escapeHtml(f.spotName)}</div>
           <div class="haiku-text">${escapeHtml(f.haiku || '(一言なし)')}</div>
@@ -506,6 +574,8 @@
           </div>
         </div>
       `;
+      card.style.cursor = 'pointer';
+      card.addEventListener('click', () => openSpotDetail(f.entryId, f.categoryId, f.kind));
       kushuListEl.appendChild(card);
     });
   }

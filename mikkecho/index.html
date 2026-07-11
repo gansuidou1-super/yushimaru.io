@@ -110,12 +110,9 @@
       </div>
 
       <div class="field">
-        <label>写真(任意)</label>
-        <label class="photo-picker" id="photoPicker">
-          <span class="icon">📷</span>
-          <span>タップして写真を撮る・選ぶ</span>
-          <input type="file" accept="image/*" id="photoInput" style="display:none;">
-        </label>
+        <label>写真(任意・複数可)</label>
+        <div class="photo-grid" id="photoGrid"></div>
+        <input type="file" accept="image/*" id="photoInput" multiple style="display:none;">
       </div>
 
       <div class="field">
@@ -138,6 +135,7 @@
       <div id="spotDetailBody"></div>
       <div class="modal-actions">
         <button class="btn-cancel" id="spotDeleteBtn" style="color:var(--vermilion-600); border-color:var(--vermilion-200);">削除</button>
+        <button class="btn-cancel" id="spotEditBtn">編集</button>
         <button class="btn-primary btn-save" id="spotCloseBtn">閉じる</button>
       </div>
     </div>
