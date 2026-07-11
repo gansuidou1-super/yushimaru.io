@@ -386,10 +386,35 @@ async function maybeSeed(){
 
 /* ---------------- auth (Firebase) ---------------- */
 function requestSignIn(){
-  // リダイレクト方式（スマホでも確実に動く）
-  auth.signInWithRedirect(provider).catch((err) => {
-    state.deniedEmail = '(ログインに失敗しました: ' + err.code + ')';
-    render();
+  auth.signInWithPopup(provider).then(async (result) => {
+    const email = result.user.email;
+    if(email === ADMIN_EMAIL){
+      state.authEmail = email;
+      state.authName = result.user.displayName;
+      state.authPicture = result.user.photoURL;
+      state.deniedEmail = null;
+      state.showLoginModal = false;
+      await maybeSeed();
+      await refreshItems();
+      render();
+    }else{
+      state.deniedEmail = email;
+      auth.signOut();
+      render();
+    }
+  }).catch((err) => {
+    console.error('popup error:', err.code, err.message);
+    if(
+      err.code === 'auth/popup-blocked' ||
+      err.code === 'auth/popup-closed-by-user' ||
+      err.code === 'auth/cancelled-popup-request'
+    ){
+      // ポップアップがブロックされた場合はリダイレクトにフォールバック
+      auth.signInWithRedirect(provider);
+    } else {
+      state.deniedEmail = 'エラー: ' + err.code;
+      render();
+    }
   });
 }
 function logout(){
@@ -401,7 +426,7 @@ function logout(){
 }
 function isAdmin(){ return state.authEmail === ADMIN_EMAIL; }
 
-// リダイレクト後に戻ってきたときの処理
+// リダイレクト後の処理
 auth.getRedirectResult().then(async (result) => {
   if(result && result.user){
     const email = result.user.email;
@@ -421,7 +446,7 @@ auth.getRedirectResult().then(async (result) => {
     }
   }
 }).catch((err) => {
-  console.error('redirect result error:', err);
+  console.error('redirect result error:', err.code);
 });
 
 auth.onAuthStateChanged(async (user) => {
@@ -959,7 +984,7 @@ function renderModal(){
         <div class="gsi-holder">
           <button class="btn primary" onclick="requestSignIn()" style="padding:12px 24px;font-size:13px;">Googleでログイン</button>
         </div>
-        ${state.deniedEmail ? `<div class="denied">「${escapeHtml(state.deniedEmail)}」ではアクセスできません。</div>` : ''}
+        ${state.deniedEmail ? `<div class="denied">${escapeHtml(state.deniedEmail)}</div>` : ''}
         <button class="close" onclick="closeModal()">公開ページに戻る</button>
       </div>
     </div>
