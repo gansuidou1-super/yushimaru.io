@@ -386,22 +386,8 @@ async function maybeSeed(){
 
 /* ---------------- auth (Firebase) ---------------- */
 function requestSignIn(){
-  auth.signInWithPopup(provider).then(async (result) => {
-    const email = result.user.email;
-    if(email === ADMIN_EMAIL){
-      state.authEmail = email;
-      state.authName = result.user.displayName;
-      state.authPicture = result.user.photoURL;
-      state.deniedEmail = null;
-      state.showLoginModal = false;
-      await maybeSeed();
-      await refreshItems();
-    }else{
-      state.deniedEmail = email;
-      auth.signOut();
-    }
-    render();
-  }).catch((err) => {
+  // リダイレクト方式（スマホでも確実に動く）
+  auth.signInWithRedirect(provider).catch((err) => {
     state.deniedEmail = '(ログインに失敗しました: ' + err.code + ')';
     render();
   });
@@ -414,6 +400,29 @@ function logout(){
   refreshItems().then(() => goTo('public'));
 }
 function isAdmin(){ return state.authEmail === ADMIN_EMAIL; }
+
+// リダイレクト後に戻ってきたときの処理
+auth.getRedirectResult().then(async (result) => {
+  if(result && result.user){
+    const email = result.user.email;
+    if(email === ADMIN_EMAIL){
+      state.authEmail = email;
+      state.authName = result.user.displayName;
+      state.authPicture = result.user.photoURL;
+      state.deniedEmail = null;
+      state.showLoginModal = false;
+      await maybeSeed();
+      await refreshItems();
+      render();
+    }else{
+      state.deniedEmail = email;
+      auth.signOut();
+      render();
+    }
+  }
+}).catch((err) => {
+  console.error('redirect result error:', err);
+});
 
 auth.onAuthStateChanged(async (user) => {
   if(user && user.email === ADMIN_EMAIL){
