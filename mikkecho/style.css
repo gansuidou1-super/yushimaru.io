@@ -1,0 +1,511 @@
+/* ==========================================================
+   駿府みっけ帖 — design tokens
+   Subject: a stamp-collection book (御朱印帳 / スタンプ帳) —
+   washi paper, stone-marker grey, indigo, and a vermilion
+   hanko-stamp accent for "found" moments.
+   ========================================================== */
+
+@import url('https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@500;700;800&family=Noto+Sans+JP:wght@400;500;700;900&display=swap');
+
+:root{
+  --paper-000:#F7F3E9;
+  --paper-100:#EFEAE0;
+  --paper-200:#E4DDCC;
+
+  --stone-900:#2B2B26;
+  --stone-700:#3A3A34;
+  --stone-500:#6E6A61;
+  --stone-300:#A6A196;
+
+  --indigo-900:#20293B;
+  --indigo-700:#2B3A55;
+  --indigo-500:#3F5375;
+  --indigo-300:#8C9CB8;
+
+  --vermilion-700:#93342099;
+  --vermilion-600:#B5432E;
+  --vermilion-500:#C65A3F;
+  --vermilion-200:#E9C3B7;
+
+  --gold-500:#B7935B;
+  --gold-300:#DDC694;
+
+  --ink-900:#211F1A;
+  --ink-600:#565247;
+
+  --font-display:'Shippori Mincho', 'Noto Serif JP', serif;
+  --font-body:'Noto Sans JP', sans-serif;
+
+  --radius-lg:22px;
+  --radius-md:14px;
+  --radius-sm:8px;
+
+  --bg: var(--paper-100);
+  --bg-elevated: var(--paper-000);
+  --text-main: var(--ink-900);
+  --text-sub: var(--stone-500);
+  --line: rgba(43,43,38,0.12);
+  --shadow: 0 6px 20px rgba(43,38,30,0.14);
+}
+
+*{ box-sizing:border-box; }
+html,body{ height:100%; }
+body{
+  margin:0;
+  font-family: var(--font-body);
+  background: var(--bg);
+  color: var(--text-main);
+  -webkit-tap-highlight-color: transparent;
+  overscroll-behavior-y: none;
+}
+button{ font-family:inherit; }
+h1,h2,h3{ font-family: var(--font-display); margin:0; }
+
+/* subtle washi paper texture */
+body{
+  background-image:
+    radial-gradient(circle at 20% 10%, rgba(43,43,38,0.035) 0, transparent 45%),
+    radial-gradient(circle at 80% 60%, rgba(43,43,38,0.03) 0, transparent 40%);
+}
+
+#app{
+  max-width: 480px;
+  margin: 0 auto;
+  min-height: 100vh;
+  display:flex;
+  flex-direction:column;
+  position:relative;
+  background: var(--bg);
+}
+
+/* ---------------- topbar ---------------- */
+.topbar{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  padding: 20px 20px 8px;
+}
+.topbar .brand h1{
+  font-size:21px;
+  color: var(--indigo-900);
+  letter-spacing:.04em;
+}
+.topbar .brand .sub{
+  font-size:11px;
+  color: var(--text-sub);
+  margin-top:2px;
+  letter-spacing:.05em;
+}
+.progress-pill{
+  background: var(--bg-elevated);
+  border:1px solid var(--line);
+  border-radius:20px;
+  padding:6px 12px;
+  font-size:11.5px;
+  color: var(--indigo-700);
+  display:flex;
+  align-items:center;
+  gap:5px;
+}
+
+/* ---------------- main / views ---------------- */
+main{
+  flex:1;
+  padding: 6px 16px 100px;
+  overflow-y:auto;
+}
+.view{ display:none; animation: fadeIn .3s ease; }
+.view.active{ display:block; }
+@keyframes fadeIn{ from{opacity:0; transform:translateY(6px);} to{opacity:1; transform:none;} }
+
+.section-head{
+  display:flex; align-items:baseline; justify-content:space-between;
+  margin: 18px 2px 10px;
+}
+.section-head h2{ font-size:16px; color: var(--indigo-900); }
+.section-head .hint{ font-size:11px; color: var(--text-sub); }
+
+/* ---------------- category cards (図鑑 home) ---------------- */
+.cat-card{
+  display:flex; align-items:center; gap:14px;
+  background: var(--bg-elevated);
+  border:1px solid var(--line);
+  border-radius: var(--radius-lg);
+  padding: 16px;
+  margin-bottom:12px;
+  cursor:pointer;
+  box-shadow: var(--shadow);
+}
+.cat-card .cat-icon{
+  width:52px; height:52px;
+  border-radius:50%;
+  background: var(--paper-200);
+  display:flex; align-items:center; justify-content:center;
+  font-size:24px;
+  flex:0 0 auto;
+}
+.cat-card .cat-meta{ flex:1; min-width:0; }
+.cat-card .cat-name{ font-size:15.5px; font-weight:700; color:var(--ink-900); }
+.cat-card .cat-progress-text{ font-size:11.5px; color: var(--text-sub); margin-top:2px; }
+.cat-card .ring{ flex:0 0 auto; }
+.cat-card .chev{ color: var(--stone-300); font-size:18px; }
+
+.progress-ring-svg circle{ transition: stroke-dashoffset .5s ease; }
+
+.add-category-btn{
+  width:100%;
+  border:2px dashed var(--line);
+  background:transparent;
+  border-radius: var(--radius-lg);
+  padding:16px;
+  color: var(--text-sub);
+  font-size:13px;
+  cursor:pointer;
+  margin-bottom:12px;
+}
+
+/* ---------------- category detail (grid of spots) ---------------- */
+.back-row{
+  display:flex; align-items:center; gap:8px;
+  margin: 4px 0 12px;
+}
+.back-btn{
+  width:34px; height:34px; border-radius:50%;
+  border:1px solid var(--line); background:var(--bg-elevated);
+  cursor:pointer; font-size:15px; color:var(--indigo-900);
+}
+.back-row h2{ font-size:16px; }
+
+.spot-grid{
+  display:grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap:10px;
+}
+.spot-card{
+  background: var(--bg-elevated);
+  border:1px solid var(--line);
+  border-radius: var(--radius-md);
+  overflow:hidden;
+  cursor:pointer;
+  position:relative;
+  text-align:center;
+  padding-bottom:8px;
+}
+.spot-card .thumb{
+  width:100%; aspect-ratio:1;
+  background: var(--paper-200);
+  display:flex; align-items:center; justify-content:center;
+  font-size:26px;
+  color: var(--stone-300);
+  object-fit:cover;
+}
+.spot-card.found .thumb{ color:transparent; }
+.spot-card img.thumb{ display:block; }
+.spot-card .spot-name{
+  font-size:10.5px;
+  padding: 6px 4px 0;
+  color: var(--text-main);
+  line-height:1.3;
+  min-height: 26px;
+}
+.spot-card.undiscovered .spot-name{ color: var(--text-sub); }
+.stamp-badge{
+  position:absolute; top:4px; right:4px;
+  width:22px; height:22px; border-radius:50%;
+  background: var(--vermilion-600);
+  color:#fff;
+  display:flex; align-items:center; justify-content:center;
+  font-size:11px;
+  box-shadow: 0 2px 4px rgba(0,0,0,.25);
+  transform: rotate(-12deg);
+}
+
+.free-entry-add{
+  background: transparent;
+  border:2px dashed var(--line);
+  border-radius: var(--radius-md);
+  aspect-ratio:1;
+  display:flex; align-items:center; justify-content:center;
+  font-size:22px;
+  color: var(--text-sub);
+  cursor:pointer;
+}
+
+.empty-state{
+  text-align:center;
+  padding: 34px 20px;
+  color: var(--text-sub);
+  font-size:13px;
+}
+.empty-state .em{ font-size:30px; display:block; margin-bottom:8px; }
+
+/* ---------------- anthology (句集) ---------------- */
+.haiku-card{
+  background: var(--bg-elevated);
+  border:1px solid var(--line);
+  border-radius: var(--radius-lg);
+  overflow:hidden;
+  margin-bottom:14px;
+  box-shadow: var(--shadow);
+}
+.haiku-card .photo{
+  width:100%;
+  aspect-ratio: 4/3;
+  object-fit:cover;
+  background: var(--paper-200);
+  display:block;
+}
+.haiku-card .photo-placeholder{
+  width:100%; aspect-ratio:4/3;
+  background: var(--paper-200);
+  display:flex; align-items:center; justify-content:center;
+  font-size:28px; color:var(--stone-300);
+}
+.haiku-card .body{ padding: 14px 16px 16px; }
+.haiku-card .haiku-text{
+  font-family: var(--font-display);
+  font-size:17px;
+  line-height:1.7;
+  color: var(--ink-900);
+  white-space:pre-wrap;
+}
+.haiku-card .meta-row{
+  display:flex; align-items:center; justify-content:space-between;
+  margin-top:10px;
+}
+.haiku-card .tag{
+  font-size:10.5px;
+  background: var(--indigo-700);
+  color:#fff;
+  padding:3px 9px;
+  border-radius:20px;
+}
+.haiku-card .date{ font-size:11px; color: var(--text-sub); }
+.haiku-card .spot-name{ font-size:12px; color: var(--indigo-700); font-weight:700; margin-top:2px;}
+
+/* ---------------- achievements ---------------- */
+.badge-grid{
+  display:grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap:10px;
+}
+.badge{
+  background: var(--bg-elevated);
+  border-radius: var(--radius-md);
+  border:1px solid var(--line);
+  padding: 14px 8px;
+  text-align:center;
+  opacity:.35;
+  filter: grayscale(1);
+}
+.badge.unlocked{ opacity:1; filter:none; box-shadow: var(--shadow); }
+.badge .icon{ font-size:24px; }
+.badge .name{ font-size:11px; font-weight:700; margin-top:6px; }
+.badge .desc{ font-size:9px; color: var(--text-sub); margin-top:2px; line-height:1.3; }
+
+/* ---------------- settings ---------------- */
+.settings-list{ display:flex; flex-direction:column; gap:8px; margin-bottom:6px;}
+.settings-row{
+  display:flex; align-items:center; justify-content:space-between;
+  background: var(--bg-elevated);
+  border:1px solid var(--line);
+  border-radius: var(--radius-md);
+  padding: 13px 16px;
+  width:100%;
+  cursor:pointer;
+}
+.settings-row .label{ font-size:13.5px; text-align:left; }
+.settings-row .desc{ font-size:11px; color:var(--text-sub); margin-top:2px; text-align:left; }
+
+.btn-primary{
+  width:100%;
+  background: var(--indigo-900);
+  color: var(--paper-000);
+  border:none;
+  border-radius: var(--radius-md);
+  padding: 14px;
+  font-size:14.5px;
+  font-weight:700;
+  cursor:pointer;
+  font-family: var(--font-body);
+}
+.btn-ghost{
+  width:100%;
+  background: transparent;
+  color: var(--vermilion-600);
+  border:1px solid var(--vermilion-200);
+  border-radius: var(--radius-md);
+  padding: 12px;
+  font-size:13.5px;
+  cursor:pointer;
+  margin-top:6px;
+}
+
+/* ---------------- tabbar ---------------- */
+.tabbar{
+  position:sticky; bottom:0;
+  display:flex;
+  background: var(--bg-elevated);
+  border-top:1px solid var(--line);
+  padding: 8px 6px calc(8px + env(safe-area-inset-bottom));
+  max-width:480px;
+  margin:0 auto;
+  width:100%;
+}
+.tab-btn{
+  flex:1;
+  background:none; border:none;
+  display:flex; flex-direction:column; align-items:center; gap:2px;
+  padding:6px 0;
+  color: var(--text-sub);
+  cursor:pointer;
+  font-size:10.5px;
+  border-radius:12px;
+}
+.tab-btn .ic{ font-size:19px; }
+.tab-btn.active{ color: var(--indigo-900); background: var(--paper-200); }
+
+/* ---------------- modal ---------------- */
+.modal-backdrop{
+  position:fixed; inset:0;
+  background: rgba(30,28,22,.5);
+  display:flex; align-items:flex-end;
+  z-index:50;
+  opacity:0; pointer-events:none;
+  transition: opacity .25s ease;
+}
+.modal-backdrop.open{ opacity:1; pointer-events:auto; }
+.modal-sheet{
+  background: var(--bg-elevated);
+  width:100%;
+  max-width:480px;
+  margin:0 auto;
+  border-radius: 22px 22px 0 0;
+  padding: 20px 20px calc(20px + env(safe-area-inset-bottom));
+  transform: translateY(100%);
+  transition: transform .3s cubic-bezier(.32,.72,0,1);
+  max-height:88vh;
+  overflow-y:auto;
+}
+.modal-backdrop.open .modal-sheet{ transform: translateY(0); }
+.modal-sheet h3{ font-size:17px; margin-bottom:4px; }
+.modal-sheet .modal-sub{ font-size:11.5px; color:var(--text-sub); margin-bottom:14px; }
+
+.field{ margin-bottom:14px; }
+.field label{ display:block; font-size:12px; color: var(--text-sub); margin-bottom:6px; }
+.field input[type="text"], .field textarea{
+  width:100%;
+  padding: 12px 14px;
+  border-radius: var(--radius-sm);
+  border:1px solid var(--line);
+  background: var(--bg);
+  color: var(--text-main);
+  font-size:14px;
+  font-family: var(--font-body);
+}
+.field textarea{
+  font-family: var(--font-display);
+  font-size:16px;
+  min-height:90px;
+  resize:vertical;
+  line-height:1.6;
+}
+
+.photo-picker{
+  width:100%;
+  border:2px dashed var(--line);
+  border-radius: var(--radius-md);
+  aspect-ratio: 4/3;
+  display:flex; flex-direction:column; align-items:center; justify-content:center;
+  gap:6px;
+  color: var(--text-sub);
+  font-size:12px;
+  cursor:pointer;
+  background: var(--bg);
+  overflow:hidden;
+  position:relative;
+}
+.photo-picker img{
+  position:absolute; inset:0;
+  width:100%; height:100%; object-fit:cover;
+}
+.photo-picker .icon{ font-size:26px; }
+
+.modal-actions{ display:flex; gap:10px; margin-top:6px; }
+.modal-actions .btn-cancel{
+  flex:1; background:transparent; border:1px solid var(--line);
+  border-radius: var(--radius-md); padding:14px; color: var(--text-main);
+  font-size:14px; cursor:pointer;
+}
+.modal-actions .btn-save{ flex:1.4; }
+
+/* spot detail (view found entry) */
+.detail-photo{
+  width:100%; border-radius: var(--radius-md);
+  aspect-ratio:4/3; object-fit:cover; margin-bottom:14px;
+  background: var(--paper-200);
+}
+.detail-haiku{
+  font-family: var(--font-display);
+  font-size:19px;
+  line-height:1.8;
+  white-space:pre-wrap;
+  margin-bottom:10px;
+}
+.detail-meta{ font-size:12px; color:var(--text-sub); margin-bottom:16px; }
+
+/* toast */
+.toast{
+  position:fixed;
+  left:50%; bottom:100px;
+  transform: translate(-50%, 20px);
+  background: var(--indigo-900);
+  color: var(--paper-000);
+  padding: 12px 18px;
+  border-radius: 30px;
+  font-size:13px;
+  opacity:0;
+  pointer-events:none;
+  transition: all .3s cubic-bezier(.34,1.56,.64,1);
+  z-index: 80;
+  max-width: 85%;
+  text-align:center;
+  box-shadow: var(--shadow);
+}
+.toast.show{ opacity:1; transform: translate(-50%, 0); }
+
+/* hanko stamp animation overlay */
+.stamp-overlay{
+  position:fixed; inset:0;
+  display:flex; align-items:center; justify-content:center;
+  pointer-events:none;
+  z-index:90;
+}
+.stamp-overlay .stamp-mark{
+  width:140px; height:140px;
+  border-radius:50%;
+  border: 6px solid var(--vermilion-600);
+  color: var(--vermilion-600);
+  display:flex; align-items:center; justify-content:center;
+  font-family: var(--font-display);
+  font-size:22px;
+  font-weight:700;
+  transform: scale(2.4) rotate(-18deg);
+  opacity:0;
+  background: rgba(247,243,233,0.0);
+}
+.stamp-overlay.play .stamp-mark{
+  animation: stampDown .55s cubic-bezier(.2,.9,.3,1.2) forwards;
+}
+@keyframes stampDown{
+  0%{ transform: scale(2.4) rotate(-18deg); opacity:0; }
+  55%{ transform: scale(0.92) rotate(-12deg); opacity:1; }
+  70%{ transform: scale(1.08) rotate(-12deg); opacity:1; }
+  100%{ transform: scale(1) rotate(-12deg); opacity:1; }
+}
+
+::-webkit-scrollbar{ width:0; height:0; }
+
+@media (prefers-reduced-motion: reduce){
+  *{ animation-duration:.001ms !important; transition-duration:.001ms !important; }
+}
