@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1">
+<title>駿府みっけ帖</title>
+<meta name="description" content="街で見つけたものを写真と一句で集める発見図鑑">
+<meta name="theme-color" content="#3A3A34">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="みっけ帖">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div id="app">
+
+  <header class="topbar">
+    <div class="brand">
+      <h1>駿府みっけ帖</h1>
+      <div class="sub">見つけて、詠む。</div>
+    </div>
+    <div class="progress-pill">🀆 <span id="totalFoundCount">0</span>句</div>
+  </header>
+
+  <main>
+
+    <!-- ============ 図鑑 (home list) ============ -->
+    <section class="view active" id="view-zukan">
+      <div id="zukanHome">
+        <div class="section-head"><h2>図鑑</h2><span class="hint">タップして開く</span></div>
+        <div id="categoryList"></div>
+        <button class="add-category-btn" id="openAddCategory">＋ 新しいテーマの図鑑を作る</button>
+      </div>
+
+      <div id="zukanDetail" style="display:none;">
+        <div class="back-row">
+          <button class="back-btn" id="backToZukanHome">‹</button>
+          <h2 id="detailCategoryName"></h2>
+        </div>
+        <div class="section-head" style="margin-top:0;">
+          <span class="hint" id="detailProgressHint"></span>
+        </div>
+        <div class="spot-grid" id="spotGrid"></div>
+      </div>
+    </section>
+
+    <!-- ============ 句集 ============ -->
+    <section class="view" id="view-kushu">
+      <div class="section-head"><h2>句集</h2><span class="hint" id="kushuCountHint"></span></div>
+      <div id="kushuList"></div>
+      <div id="kushuEmpty" class="empty-state" style="display:none;">
+        <span class="em">🖋️</span>
+        まだ句がありません。図鑑からスポットを見つけて、最初の一句を詠んでみましょう。
+      </div>
+    </section>
+
+    <!-- ============ 実績 ============ -->
+    <section class="view" id="view-jisseki">
+      <div class="section-head"><h2>称号</h2><span class="hint" id="badgeCountHint"></span></div>
+      <div class="badge-grid" id="badgeGrid"></div>
+    </section>
+
+    <!-- ============ 設定 ============ -->
+    <section class="view" id="view-settei">
+      <div class="section-head"><h2>データ</h2></div>
+      <div class="settings-list">
+        <button class="settings-row" id="exportBtn">
+          <div>
+            <div class="label">データをエクスポート</div>
+            <div class="desc">JSONファイルとして書き出します(写真含む)</div>
+          </div>
+          <span>⇩</span>
+        </button>
+      </div>
+      <button class="btn-ghost" id="resetBtn">すべてのデータをリセット</button>
+
+      <div class="section-head"><h2>このアプリについて</h2></div>
+      <div class="settings-list">
+        <div class="settings-row" style="cursor:default;">
+          <div>
+            <div class="label">プリセット図鑑の出典</div>
+            <div class="desc">プラモニュメント・町名碑は静岡市公式サイトの情報をもとに作成しています。設置状況は変わることがあります。</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <nav class="tabbar">
+    <button class="tab-btn active" data-view="zukan"><span class="ic">📖</span>図鑑</button>
+    <button class="tab-btn" data-view="kushu"><span class="ic">🖋️</span>句集</button>
+    <button class="tab-btn" data-view="jisseki"><span class="ic">🎖️</span>称号</button>
+    <button class="tab-btn" data-view="settei"><span class="ic">⚙️</span>設定</button>
+  </nav>
+
+  <!-- Find / Add entry modal (photo + haiku) -->
+  <div class="modal-backdrop" id="findModalBackdrop">
+    <div class="modal-sheet">
+      <h3 id="findModalTitle">見つけた！</h3>
+      <div class="modal-sub" id="findModalHint"></div>
+
+      <div class="field" id="freeNameField" style="display:none;">
+        <label>名前</label>
+        <input type="text" id="freeNameInput" placeholder="例: 三毛猫、変わった自販機" maxlength="24">
+      </div>
+
+      <div class="field">
+        <label>写真(任意)</label>
+        <label class="photo-picker" id="photoPicker">
+          <span class="icon">📷</span>
+          <span>タップして写真を撮る・選ぶ</span>
+          <input type="file" accept="image/*" capture="environment" id="photoInput" style="display:none;">
+        </label>
+      </div>
+
+      <div class="field">
+        <label>一句・一言(五七五でなくてもOK)</label>
+        <textarea id="haikuInput" placeholder="例: 石碑の名 読めば昔の 声きこゆ"></textarea>
+      </div>
+
+      <div class="modal-actions">
+        <button class="btn-cancel" id="findCancelBtn">キャンセル</button>
+        <button class="btn-primary btn-save" id="findSaveBtn">記録する</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Spot / found-entry detail modal -->
+  <div class="modal-backdrop" id="spotDetailBackdrop">
+    <div class="modal-sheet">
+      <h3 id="spotDetailName"></h3>
+      <div class="modal-sub" id="spotDetailHint"></div>
+      <div id="spotDetailBody"></div>
+      <div class="modal-actions">
+        <button class="btn-cancel" id="spotDeleteBtn" style="color:var(--vermilion-600); border-color:var(--vermilion-200);">削除</button>
+        <button class="btn-primary btn-save" id="spotCloseBtn">閉じる</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Add category modal -->
+  <div class="modal-backdrop" id="categoryModalBackdrop">
+    <div class="modal-sheet">
+      <h3>新しいテーマの図鑑</h3>
+      <div class="modal-sub">自分だけのコレクションテーマを作れます。見つけるたびに自由に追加していく図鑑になります。</div>
+      <div class="field">
+        <label>テーマ名</label>
+        <input type="text" id="categoryNameInput" placeholder="例: 街の変な看板、野良猫" maxlength="20">
+      </div>
+      <div class="field">
+        <label>アイコン</label>
+        <div class="emoji-row" id="categoryEmojiRow" style="display:flex; gap:8px; flex-wrap:wrap;"></div>
+      </div>
+      <div class="modal-actions">
+        <button class="btn-cancel" id="categoryCancelBtn">キャンセル</button>
+        <button class="btn-primary btn-save" id="categorySaveBtn">作る</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+  <div class="stamp-overlay" id="stampOverlay"><div class="stamp-mark">見つけた</div></div>
+
+</div>
+
+<script src="data.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
