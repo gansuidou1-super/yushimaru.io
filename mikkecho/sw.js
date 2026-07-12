@@ -1,4 +1,4 @@
-const CACHE_NAME = 'mikkecho-cache-v7';
+const CACHE_NAME = 'mikkecho-cache-v8';
 const ASSETS = [
   './',
   './index.html',
@@ -9,6 +9,8 @@ const ASSETS = [
   './icons/icon-192.png',
   './icons/icon-512.png',
   './icons/icon-512-maskable.png',
+  './icons/categories/plamonument.png',
+  './icons/categories/chomeihi.png',
 ];
 
 self.addEventListener('install', (event) => {

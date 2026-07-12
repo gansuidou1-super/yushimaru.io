@@ -62,6 +62,13 @@
     return d.innerHTML;
   }
 
+  function catIconHTML(cat, sizePx) {
+    if (cat.iconImage) {
+      return `<img src="${cat.iconImage}" alt="" style="width:${sizePx}px;height:${sizePx}px;object-fit:cover;border-radius:50%;vertical-align:middle;">`;
+    }
+    return `<span>${cat.icon}</span>`;
+  }
+
   /* ============================================================
      CATEGORY HELPERS
   ============================================================ */
@@ -331,7 +338,7 @@
       const ring = cat.type === 'checklist' ? ringSVG(total ? found / total : 0) :
         `<div style="width:44px;height:44px;border-radius:50%;background:var(--paper-200);display:flex;align-items:center;justify-content:center;font-size:14px;color:var(--indigo-700);font-weight:700;">${found}</div>`;
       card.innerHTML = `
-        <div class="cat-icon">${cat.icon}</div>
+        <div class="cat-icon">${catIconHTML(cat, 44)}</div>
         <div class="cat-meta">
           <div class="cat-name">${escapeHtml(cat.name)}</div>
           <div class="cat-progress-text">${progressText}</div>
@@ -417,7 +424,7 @@
   function renderCategoryDetail() {
     const cat = getCategory(currentCategoryId);
     if (!cat) return;
-    detailCategoryNameEl.textContent = cat.icon + ' ' + cat.name;
+    detailCategoryNameEl.innerHTML = `${catIconHTML(cat, 22)} ${escapeHtml(cat.name)}`;
     const found = categoryFoundCount(cat);
     detailProgressHintEl.textContent = cat.type === 'checklist'
       ? `${found} / ${cat.entries.length} 発見`
@@ -767,7 +774,7 @@
     cats.forEach(cat => {
       const btn = document.createElement('button');
       btn.className = 'kushu-filter-btn' + (kushuFilterCategoryId === cat.id ? ' active' : '');
-      btn.textContent = cat.icon + ' ' + cat.name;
+      btn.innerHTML = `${catIconHTML(cat, 16)} ${escapeHtml(cat.name)}`;
       btn.addEventListener('click', () => { kushuFilterCategoryId = cat.id; renderKushu(); });
       kushuFilterRowEl.appendChild(btn);
     });

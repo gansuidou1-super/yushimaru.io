@@ -8,6 +8,7 @@ const PRESET_CATEGORIES = [
     id: 'plamonument',
     name: 'プラモニュメント',
     icon: '🧩',
+    iconImage: 'icons/categories/plamonument.png',
     type: 'checklist',
     entries: [
       { id: 'pm_001', name: '模型の世界首都プラモニュメント', hint: 'JR静岡駅南口' },
@@ -33,6 +34,7 @@ const PRESET_CATEGORIES = [
     id: 'chomeihi',
     name: '駿府九十六ヶ町 町名碑',
     icon: '🪧',
+    iconImage: 'icons/categories/chomeihi.png',
     type: 'checklist',
     entries: [
       { id: 'cm_01', name: '下横田町', hint: '横田町12-13 地蔵堂前' },
