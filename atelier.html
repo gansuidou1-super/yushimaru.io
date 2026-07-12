@@ -6,7 +6,7 @@
 <title>The Atelier</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%2316151C'/%3E%3Crect x='16' y='16' width='32' height='32' fill='none' stroke='%23B08D57' stroke-width='4'/%3E%3Ccircle cx='20' cy='20' r='2.5' fill='%23B08D57'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&family=Dancing+Script:wght@600&display=swap" rel="stylesheet">
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
@@ -328,39 +328,111 @@
   /* ---------- Business card ---------- */
   .card-preview-wrap{
     border:1px solid var(--line);border-radius:8px;padding:32px;
-    background:var(--ink-2);margin-bottom:24px;display:flex;justify-content:center;
+    background:var(--ink-2);margin-bottom:24px;
+    display:flex;flex-direction:column;align-items:center;gap:28px;
   }
-  #businessCard{
-    width:540px;height:300px;
-    background:linear-gradient(135deg,#16151C 60%,#1D1C24);
-    border:1px solid rgba(176,141,87,0.4);border-radius:8px;
-    padding:40px 48px;display:flex;flex-direction:column;justify-content:space-between;
-    position:relative;overflow:hidden;flex-shrink:0;
+  .bc-label{
+    font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:0.12em;
+    color:var(--plaster-2);text-transform:uppercase;margin-bottom:8px;text-align:center;
   }
-  #businessCard::before{
-    content:'';position:absolute;top:-60px;right:-60px;
-    width:240px;height:240px;border-radius:50%;
-    background:radial-gradient(circle,rgba(176,141,87,0.12),transparent 70%);
+  /* --- Front (paper white) --- */
+  #bcFront{
+    width:560px;height:280px;
+    background:#EAE5D8;
+    border-radius:6px;position:relative;overflow:hidden;
+    flex-shrink:0;
   }
-  #businessCard::after{
-    content:'';position:absolute;bottom:-2px;left:0;right:0;height:3px;
-    background:linear-gradient(90deg,transparent,rgba(176,141,87,0.6),transparent);
+  .bc-ink-wash{
+    position:absolute;left:-10px;top:-10px;width:200px;height:300px;
+    background:radial-gradient(ellipse 120px 200px at 60px 120px, rgba(40,35,30,0.55) 0%, rgba(40,35,30,0.18) 50%, transparent 80%);
   }
-  .bc-top{display:flex;justify-content:space-between;align-items:flex-start;}
-  .bc-wordmark{font-family:'Fraunces',serif;font-size:13px;color:rgba(176,141,87,0.5);letter-spacing:0.08em;}
-  .bc-name-wrap{}
-  .bc-name{font-family:'Fraunces',serif;font-size:28px;font-weight:600;color:#F3EFE6;margin:0 0 2px;line-height:1.1;}
-  .bc-name-en{font-family:'IBM Plex Mono',monospace;font-size:11px;color:rgba(217,181,131,0.8);letter-spacing:0.12em;margin:0;}
-  .bc-role{font-family:'IBM Plex Mono',monospace;font-size:10px;color:rgba(91,138,130,0.9);letter-spacing:0.1em;text-transform:uppercase;margin:8px 0 0;}
-  .bc-bottom{display:flex;justify-content:space-between;align-items:flex-end;}
-  .bc-links{display:flex;flex-direction:column;gap:4px;}
-  .bc-link{font-family:'IBM Plex Mono',monospace;font-size:10px;color:rgba(234,227,214,0.55);letter-spacing:0.04em;}
-  .bc-site{font-family:'IBM Plex Mono',monospace;font-size:11px;color:rgba(217,181,131,0.7);letter-spacing:0.05em;}
-  @media(max-width:600px){
-    #businessCard{width:100%;max-width:380px;height:220px;padding:28px 28px;}
-    .bc-name{font-size:22px;}
-    .card-preview-wrap{padding:16px;}
+  .bc-ink-wash::after{
+    content:'';position:absolute;left:20px;top:30px;width:80px;height:220px;
+    background:radial-gradient(ellipse 50px 160px at 30px 80px, rgba(30,25,20,0.35) 0%, transparent 70%);
   }
+  .bc-front-content{
+    position:absolute;inset:0;display:flex;flex-direction:column;
+    align-items:center;justify-content:center;padding:0 60px;
+    text-align:center;
+  }
+  .bc-front-wordmark{
+    font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:0.25em;
+    color:#8A7A5A;text-transform:uppercase;margin-bottom:16px;
+  }
+  .bc-front-name{
+    font-family:'Fraunces',serif;font-size:38px;font-weight:400;
+    color:#1A1510;line-height:1.1;margin-bottom:8px;
+  }
+  .bc-front-name-en{
+    font-family:'IBM Plex Mono',monospace;font-size:12px;letter-spacing:0.14em;
+    color:#8A7A5A;margin-bottom:12px;
+  }
+  .bc-front-divider{
+    width:40px;height:1px;background:#8A7A5A;margin:0 auto 14px;opacity:0.6;
+  }
+  .bc-front-role{
+    font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:0.22em;
+    color:#3A3020;text-transform:uppercase;margin-bottom:6px;
+  }
+  .bc-front-tagline{
+    font-family:'Fraunces',serif;font-size:13px;color:#5A4E38;font-style:italic;
+  }
+  /* Enso circle */
+  .bc-enso{
+    position:absolute;right:32px;bottom:28px;
+    width:52px;height:52px;
+  }
+  /* --- Back (dark) --- */
+  #bcBack{
+    width:560px;height:280px;
+    background:#16151C;
+    border-radius:6px;position:relative;overflow:hidden;
+    flex-shrink:0;border:1px solid rgba(176,141,87,0.25);
+  }
+  .bc-back-left{
+    position:absolute;left:0;top:0;width:220px;height:280px;
+    padding:32px 28px;display:flex;flex-direction:column;justify-content:space-between;
+  }
+  .bc-back-divline{
+    position:absolute;left:220px;top:28px;width:1px;height:224px;
+    background:linear-gradient(to bottom, transparent, #B08D57 20%, #B08D57 80%, transparent);
+  }
+  .bc-back-right{
+    position:absolute;left:240px;top:0;right:0;height:280px;
+    padding:32px 20px 28px 0;display:flex;flex-direction:column;justify-content:space-between;
+  }
+  .bc-back-role{
+    font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:0.22em;
+    color:#B08D57;text-transform:uppercase;margin-bottom:8px;
+  }
+  .bc-back-role-line{
+    width:36px;height:1px;background:#B08D57;margin-bottom:20px;opacity:0.6;
+  }
+  .bc-back-bio{
+    font-family:'Fraunces',serif;font-size:13px;color:#DFD6C4;
+    line-height:1.8;font-style:italic;flex:1;
+  }
+  .bc-back-sig{
+    font-family:'Dancing Script',cursive;font-size:28px;color:#B08D57;
+    margin-top:16px;
+  }
+  .bc-back-links{display:flex;flex-direction:column;gap:10px;flex:1;}
+  .bc-back-link-item{
+    display:flex;align-items:center;gap:10px;
+    font-family:'IBM Plex Mono',monospace;font-size:10px;
+    color:#DFD6C4;letter-spacing:0.04em;
+  }
+  .bc-back-link-icon{
+    width:18px;height:18px;border-radius:50%;border:1px solid rgba(176,141,87,0.5);
+    display:flex;align-items:center;justify-content:center;
+    font-size:9px;color:#B08D57;flex-shrink:0;
+  }
+  .bc-qr-wrap{
+    width:72px;height:72px;background:#EAE5D8;border-radius:4px;
+    display:flex;align-items:center;justify-content:center;
+    align-self:flex-end;margin-top:auto;
+  }
+  .bc-qr-wrap canvas,.bc-qr-wrap img{width:64px!important;height:64px!important;}
 </style>
 </head>
 <body>
@@ -854,13 +926,18 @@ async function saveProfileFromDesk(){
 
 function renderProfile(){
   const p = state.profile || {};
-  const name = p.name || 'Your Name';
-  const nameEn = p.nameEn || '';
+  const name = p.name || '一ノ瀬 ゆしろう';
+  const nameEn = p.nameEn || 'Yushiro Ichinose';
   const role = p.role || '';
-  const roleEn = p.roleEn || '';
+  const roleEn = p.roleEn || 'LIFE OBSERVER';
   const bio = p.bio || '';
-  const siteUrl = p.siteUrl || window.location.href;
+  const siteUrl = p.siteUrl || 'https://gansuidou1-super.github.io/yushimaru.io/atelier.html';
   const links = p.links || [];
+  const atelierUrl = 'https://gansuidou1-super.github.io/yushimaru.io/atelier.html';
+
+  const githubLink = links.find(l => l.label && l.label.toLowerCase().includes('github'));
+  const githubUrl = githubLink ? githubLink.url : 'https://github.com/gansuidou1-super/yushimaru.io';
+
   return `
     <div class="profile-wrap">
       <div class="profile-hero">
@@ -878,40 +955,93 @@ function renderProfile(){
       </div>
 
       <div class="card-preview-wrap">
-        <div id="businessCard">
-          <div class="bc-top">
-            <div class="bc-wordmark">The Atelier ·</div>
-          </div>
-          <div class="bc-name-wrap">
-            <p class="bc-name">${escapeHtml(name)}</p>
-            ${nameEn ? `<p class="bc-name-en">${escapeHtml(nameEn)}</p>` : ''}
-            ${roleEn ? `<p class="bc-role">${escapeHtml(roleEn)}</p>` : ''}
-          </div>
-          <div class="bc-bottom">
-            <div class="bc-links">
-              ${links.map(l=>`<span class="bc-link">${escapeHtml(l.label)}  ${escapeHtml(l.url)}</span>`).join('')}
+        <div>
+          <p class="bc-label">表面</p>
+          <div id="bcFront">
+            <div class="bc-ink-wash"></div>
+            <div class="bc-front-content">
+              <div class="bc-front-wordmark">The Atelier</div>
+              <div class="bc-front-name">${escapeHtml(name)}</div>
+              <div class="bc-front-name-en">${escapeHtml(nameEn)}</div>
+              <div class="bc-front-divider"></div>
+              <div class="bc-front-role">${escapeHtml(roleEn)}</div>
+              ${bio ? `<div class="bc-front-tagline">${escapeHtml(bio.split('。')[0])}。</div>` : ''}
             </div>
-            <span class="bc-site">${escapeHtml(siteUrl)}</span>
+            <svg class="bc-enso" viewBox="0 0 52 52" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M26 4 C38 4, 48 14, 48 26 C48 36, 42 44, 33 47 C22 50, 10 44, 6 33 C2 22, 8 10, 18 6" stroke="#8A7A5A" stroke-width="2.5" stroke-linecap="round" fill="none" opacity="0.85"/>
+            </svg>
+          </div>
+        </div>
+        <div>
+          <p class="bc-label">裏面</p>
+          <div id="bcBack">
+            <div class="bc-back-divline"></div>
+            <div class="bc-back-left">
+              <div>
+                <div class="bc-back-role">${escapeHtml(roleEn)}</div>
+                <div class="bc-back-role-line"></div>
+                <div class="bc-back-bio">${escapeHtml(bio || '人生という流れを、\nアートとして見つめる。\n思考と美の記録。').replace(/\n/g,'<br>')}</div>
+              </div>
+              <div class="bc-back-sig">yushiro</div>
+            </div>
+            <div class="bc-back-right">
+              <div class="bc-back-links">
+                <div class="bc-back-link-item">
+                  <div class="bc-back-link-icon">gh</div>
+                  <span>github.com/gansuidou1-super</span>
+                </div>
+                <div class="bc-back-link-item">
+                  <div class="bc-back-link-icon">⊙</div>
+                  <span>yushimaru.io</span>
+                </div>
+                <div class="bc-back-link-item">
+                  <div class="bc-back-link-icon">✦</div>
+                  <span>atelier</span>
+                </div>
+              </div>
+              <div class="bc-qr-wrap" id="bcQrHolder"></div>
+            </div>
           </div>
         </div>
       </div>
-      <button class="card-download-btn" onclick="downloadCard()">名刺画像をダウンロード</button>
+      <div style="display:flex;gap:12px;justify-content:center;">
+        <button class="card-download-btn" onclick="downloadCard('bcFront','atelier-card-front')">表面をダウンロード</button>
+        <button class="card-download-btn" onclick="downloadCard('bcBack','atelier-card-back')">裏面をダウンロード</button>
+      </div>
     </div>
   `;
 }
 
-async function downloadCard(){
-  const card = document.getElementById('businessCard');
-  if(!card){ alert('名刺が見つかりません。'); return; }
+function initCardQR(){
+  const holder = document.getElementById('bcQrHolder');
+  if(!holder || holder.children.length > 0) return;
+  try{
+    new QRCode(holder, {
+      text: 'https://gansuidou1-super.github.io/yushimaru.io/atelier.html',
+      width: 64,
+      height: 64,
+      colorDark: '#16151C',
+      colorLight: '#EAE5D8',
+      correctLevel: QRCode.CorrectLevel.M
+    });
+  }catch(e){ console.error('QR error:', e); }
+}
+
+async function downloadCard(id, filename){
+  const card = document.getElementById(id);
+  if(!card){ alert('カードが見つかりません。'); return; }
+  // Wait for QR to render
+  await new Promise(r => setTimeout(r, 300));
   try{
     const canvas = await html2canvas(card, {
       scale: 3,
       backgroundColor: null,
       useCORS: true,
+      allowTaint: true,
       logging: false
     });
     const link = document.createElement('a');
-    link.download = 'atelier-card.png';
+    link.download = filename + '.png';
     link.href = canvas.toDataURL('image/png');
     link.click();
   }catch(e){
@@ -1174,6 +1304,7 @@ function render(){
     c.innerHTML = `<div class="hero"><p>読み込み中…</p></div>`;
   }else if(state.view === 'profile'){
     c.innerHTML = renderProfile();
+    requestAnimationFrame(initCardQR);
   }else if(state.view === 'studio' && isAdmin()){
     c.innerHTML = renderStudio();
   }else if(state.view === 'desk' && isAdmin()){
