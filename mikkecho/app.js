@@ -11,6 +11,7 @@
       userEntries: {},        // categoryId -> [ {id,name,photo,haiku,date,ts} ]  (user-added, works for any category)
       theme: 'day',           // 'day' | 'night' (行灯モード)
       onboarded: false,
+      lastBackupPromptCount: 0, // totalFoundAll() value at the time of the last backup nudge/export
     };
   }
 
@@ -91,6 +92,29 @@
     let n = 0;
     allCategories().forEach(cat => { n += categoryFoundCount(cat); });
     return n;
+  }
+
+  // Rank is based only on the fixed preset checklists (プラモニュメント + 町名碑),
+  // so it reflects real-world completion rather than free-form extras.
+  function presetTotalAll() {
+    return PRESET_CATEGORIES.reduce((sum, cat) => sum + cat.entries.length, 0);
+  }
+  function presetFoundAll() {
+    return PRESET_CATEGORIES.reduce((sum, cat) => sum + cat.entries.filter(e => !!state.founds[e.id]).length, 0);
+  }
+
+  const RANKS = [
+    { pct: 0, name: '見習い探訪家' },
+    { pct: 1 / 6, name: '中級探訪家' },
+    { pct: 5 / 12, name: '上級探訪家' },
+    { pct: 0.75, name: '駿府達人' },
+    { pct: 1.0, name: '駿府マスター' },
+  ];
+  function getRank(count, total) {
+    const ratio = total > 0 ? count / total : 0;
+    let cur = RANKS[0];
+    for (const r of RANKS) { if (ratio >= r.pct) cur = r; }
+    return cur;
   }
 
   /* ============================================================
@@ -211,6 +235,68 @@
   }
 
   /* ============================================================
+     ZUKAN HOME EXTRAS (rank banner / recent find / backup nudge)
+  ============================================================ */
+  const rankTitleEl = document.getElementById('rankTitle');
+  const rankBarFillEl = document.getElementById('rankBarFill');
+  const rankCountEl = document.getElementById('rankCount');
+  function renderRankBanner() {
+    const total = presetTotalAll();
+    const found = presetFoundAll();
+    const rank = getRank(found, total);
+    rankTitleEl.textContent = rank.name;
+    rankBarFillEl.style.width = (total ? Math.min(100, (found / total) * 100) : 0) + '%';
+    rankCountEl.textContent = `${found} / ${total}`;
+  }
+
+  const recentFindCardEl = document.getElementById('recentFindCard');
+  function renderRecentFindCard() {
+    const finds = buildAllFinds();
+    if (!finds.length) {
+      recentFindCardEl.style.display = 'none';
+      recentFindCardEl.innerHTML = '';
+      return;
+    }
+    const f = finds[0];
+    const photo = f.photos && f.photos[0];
+    recentFindCardEl.style.display = 'block';
+    recentFindCardEl.innerHTML = `
+      <div class="recent-card">
+        ${photo ? `<img class="recent-thumb" src="${photo}">` : `<div class="recent-thumb">🀆</div>`}
+        <div class="recent-body">
+          <div class="recent-label">最近の一句・${escapeHtml(f.spotName)}</div>
+          <div class="recent-haiku">${escapeHtml(f.haiku || '(一言なし)')}</div>
+          <div class="recent-meta">${escapeHtml(f.categoryName)} ・ ${f.date}</div>
+        </div>
+      </div>
+    `;
+    recentFindCardEl.querySelector('.recent-card').addEventListener('click', () => openSpotDetail(f.entryId, f.categoryId, f.kind));
+  }
+
+  const backupBannerEl = document.getElementById('backupBanner');
+  const BACKUP_PROMPT_INTERVAL = 15;
+  function shouldShowBackupBanner() {
+    return (totalFoundAll() - state.lastBackupPromptCount) >= BACKUP_PROMPT_INTERVAL;
+  }
+  function renderBackupBanner() {
+    backupBannerEl.style.display = shouldShowBackupBanner() ? 'block' : 'none';
+  }
+  document.getElementById('backupLaterBtn').addEventListener('click', () => {
+    state.lastBackupPromptCount = totalFoundAll();
+    saveState();
+    renderBackupBanner();
+  });
+  document.getElementById('backupDoBtn').addEventListener('click', () => {
+    exportData();
+  });
+
+  function renderZukanHomeExtras() {
+    renderRankBanner();
+    renderRecentFindCard();
+    renderBackupBanner();
+  }
+
+  /* ============================================================
      ZUKAN HOME (category list)
   ============================================================ */
   const categoryListEl = document.getElementById('categoryList');
@@ -260,6 +346,8 @@
 
   function openCategoryDetail(catId) {
     currentCategoryId = catId;
+    currentSpotQuery = '';
+    spotSearchInput.value = '';
     zukanHomeEl.style.display = 'none';
     zukanDetailEl.style.display = 'block';
     renderCategoryDetail();
@@ -268,13 +356,18 @@
     zukanDetailEl.style.display = 'none';
     zukanHomeEl.style.display = 'block';
     renderCategoryList();
+    renderZukanHomeExtras();
   });
 
   const detailCategoryNameEl = document.getElementById('detailCategoryName');
   const detailProgressHintEl = document.getElementById('detailProgressHint');
   const spotGridEl = document.getElementById('spotGrid');
   const sortToggleEl = document.getElementById('sortToggle');
+  const spotSearchInput = document.getElementById('spotSearchInput');
+  const spotSearchEmptyEl = document.getElementById('spotSearchEmpty');
+  const spotSearchEmptyQueryEl = document.getElementById('spotSearchEmptyQuery');
   let currentSortMode = 'name'; // 'name' | 'found_date'
+  let currentSpotQuery = '';
 
   sortToggleEl.querySelectorAll('.sort-btn').forEach(btn => {
     btn.addEventListener('click', () => {
@@ -282,6 +375,10 @@
       sortToggleEl.querySelectorAll('.sort-btn').forEach(b => b.classList.toggle('active', b === btn));
       renderCategoryDetail();
     });
+  });
+  spotSearchInput.addEventListener('input', () => {
+    currentSpotQuery = spotSearchInput.value.trim();
+    renderCategoryDetail();
   });
 
   function buildDisplayItems(cat) {
@@ -295,6 +392,12 @@
       items.push({ kind: 'user', entry, rec: entry });
     });
     return items;
+  }
+
+  function filterDisplayItems(items, query) {
+    if (!query) return items;
+    const q = query.toLowerCase();
+    return items.filter(item => item.entry.name.toLowerCase().includes(q));
   }
 
   function sortDisplayItems(items, mode) {
@@ -326,7 +429,12 @@
       showToast(hint ? '📍 ' + hint : '住所の登録はありません');
     }
 
-    const items = sortDisplayItems(buildDisplayItems(cat), currentSortMode);
+    const filtered = filterDisplayItems(buildDisplayItems(cat), currentSpotQuery);
+    const items = sortDisplayItems(filtered, currentSortMode);
+
+    spotSearchEmptyEl.style.display = (currentSpotQuery && items.length === 0) ? 'block' : 'none';
+    spotGridEl.style.display = (currentSpotQuery && items.length === 0) ? 'none' : 'grid';
+    if (spotSearchEmptyQueryEl) spotSearchEmptyQueryEl.textContent = currentSpotQuery;
 
     items.forEach(item => {
       const { kind, entry, rec } = item;
@@ -618,6 +726,16 @@
   const kushuListEl = document.getElementById('kushuList');
   const kushuEmptyEl = document.getElementById('kushuEmpty');
   const kushuCountHintEl = document.getElementById('kushuCountHint');
+  const kushuSearchInput = document.getElementById('kushuSearchInput');
+  const kushuFilterRowEl = document.getElementById('kushuFilterRow');
+  const kushuSearchEmptyEl = document.getElementById('kushuSearchEmpty');
+  let kushuQuery = '';
+  let kushuFilterCategoryId = 'all';
+
+  kushuSearchInput.addEventListener('input', () => {
+    kushuQuery = kushuSearchInput.value.trim();
+    renderKushu();
+  });
 
   function buildAllFinds() {
     const list = [];
@@ -636,11 +754,48 @@
     return list;
   }
 
+  function renderKushuFilterRow() {
+    const cats = allCategories().filter(cat => categoryFoundCount(cat) > 0);
+    kushuFilterRowEl.innerHTML = '';
+    if (!cats.length) { kushuFilterRowEl.style.display = 'none'; return; }
+    kushuFilterRowEl.style.display = 'flex';
+    const allBtn = document.createElement('button');
+    allBtn.className = 'kushu-filter-btn' + (kushuFilterCategoryId === 'all' ? ' active' : '');
+    allBtn.textContent = 'すべて';
+    allBtn.addEventListener('click', () => { kushuFilterCategoryId = 'all'; renderKushu(); });
+    kushuFilterRowEl.appendChild(allBtn);
+    cats.forEach(cat => {
+      const btn = document.createElement('button');
+      btn.className = 'kushu-filter-btn' + (kushuFilterCategoryId === cat.id ? ' active' : '');
+      btn.textContent = cat.icon + ' ' + cat.name;
+      btn.addEventListener('click', () => { kushuFilterCategoryId = cat.id; renderKushu(); });
+      kushuFilterRowEl.appendChild(btn);
+    });
+  }
+
   function renderKushu() {
-    const finds = buildAllFinds();
+    renderKushuFilterRow();
+    let finds = buildAllFinds();
+    const totalCount = finds.length;
+
+    if (kushuFilterCategoryId !== 'all') {
+      finds = finds.filter(f => f.categoryId === kushuFilterCategoryId);
+    }
+    if (kushuQuery) {
+      const q = kushuQuery.toLowerCase();
+      finds = finds.filter(f =>
+        (f.spotName || '').toLowerCase().includes(q) ||
+        (f.haiku || '').toLowerCase().includes(q)
+      );
+    }
+
     kushuListEl.innerHTML = '';
-    kushuCountHintEl.textContent = finds.length ? `${finds.length} 句` : '';
-    kushuEmptyEl.style.display = finds.length ? 'none' : 'block';
+    kushuCountHintEl.textContent = totalCount ? `${totalCount} 句` : '';
+    kushuEmptyEl.style.display = totalCount ? 'none' : 'block';
+    const noMatchButHasFinds = totalCount > 0 && finds.length === 0;
+    kushuSearchEmptyEl.style.display = noMatchButHasFinds ? 'block' : 'none';
+    kushuListEl.style.display = noMatchButHasFinds ? 'none' : 'block';
+
     finds.forEach(f => {
       const photos = f.photos || [];
       const card = document.createElement('div');
@@ -683,7 +838,7 @@
   /* ============================================================
      SETTINGS
   ============================================================ */
-  document.getElementById('exportBtn').addEventListener('click', () => {
+  function exportData() {
     const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -691,8 +846,12 @@
     a.download = `mikkecho_${todayStr()}.json`;
     a.click();
     URL.revokeObjectURL(url);
+    state.lastBackupPromptCount = totalFoundAll();
+    saveState();
+    renderBackupBanner();
     showToast('データを書き出しました');
-  });
+  }
+  document.getElementById('exportBtn').addEventListener('click', exportData);
   document.getElementById('resetBtn').addEventListener('click', () => {
     if (!confirm('すべてのデータを削除します。よろしいですか？この操作は取り消せません。')) return;
     state = defaultState();
@@ -715,6 +874,7 @@
       zukanDetailEl.style.display = 'none';
       zukanHomeEl.style.display = 'block';
       renderCategoryList();
+      renderZukanHomeExtras();
     }
   }
   tabButtons.forEach(b => b.addEventListener('click', () => switchView(b.dataset.view)));
@@ -757,6 +917,7 @@
   function renderAll() {
     renderTopbar();
     renderCategoryList();
+    if (zukanHomeEl.style.display !== 'none') renderZukanHomeExtras();
     if (zukanDetailEl.style.display !== 'none' && currentCategoryId) renderCategoryDetail();
     if (document.getElementById('view-kushu').classList.contains('active')) renderKushu();
     if (document.getElementById('view-jisseki').classList.contains('active')) renderBadges();

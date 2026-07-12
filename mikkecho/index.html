@@ -34,6 +34,22 @@
     <!-- ============ 図鑑 (home list) ============ -->
     <section class="view active" id="view-zukan">
       <div id="zukanHome">
+        <div class="rank-banner" id="rankBanner">
+          <div class="rank-title" id="rankTitle">見習い探訪家</div>
+          <div class="rank-bar-track"><div class="rank-bar-fill" id="rankBarFill"></div></div>
+          <div class="rank-count" id="rankCount">0 / 60</div>
+        </div>
+
+        <div id="backupBanner" class="backup-banner" style="display:none;">
+          <div class="backup-text">記録がたまってきました。念のためデータをバックアップしませんか？</div>
+          <div class="backup-actions">
+            <button class="backup-btn-later" id="backupLaterBtn">あとで</button>
+            <button class="backup-btn-do" id="backupDoBtn">エクスポートする</button>
+          </div>
+        </div>
+
+        <div id="recentFindCard" style="display:none;"></div>
+
         <div class="section-head"><h2>図鑑</h2><span class="hint">タップして開く</span></div>
         <div id="categoryList"></div>
         <button class="add-category-btn" id="openAddCategory">＋ 新しいテーマの図鑑を作る</button>
@@ -44,7 +60,8 @@
           <button class="back-btn" id="backToZukanHome">‹</button>
           <h2 id="detailCategoryName"></h2>
         </div>
-        <div class="section-head" style="margin-top:0;">
+        <input type="text" id="spotSearchInput" class="search-input" placeholder="町名で検索...">
+        <div class="section-head" style="margin-top:8px;">
           <span class="hint" id="detailProgressHint"></span>
           <div class="sort-toggle" id="sortToggle">
             <button class="sort-btn active" data-sort="name">町名順</button>
@@ -52,16 +69,24 @@
           </div>
         </div>
         <div class="spot-grid" id="spotGrid"></div>
+        <div id="spotSearchEmpty" class="empty-state" style="display:none;">
+          <span class="em">🔍</span>「<span id="spotSearchEmptyQuery"></span>」に一致するものが見つかりませんでした。
+        </div>
       </div>
     </section>
 
     <!-- ============ 句集 ============ -->
     <section class="view" id="view-kushu">
       <div class="section-head"><h2>句集</h2><span class="hint" id="kushuCountHint"></span></div>
+      <input type="text" id="kushuSearchInput" class="search-input" placeholder="句・町名で検索...">
+      <div class="kushu-filter-row" id="kushuFilterRow"></div>
       <div id="kushuList"></div>
       <div id="kushuEmpty" class="empty-state" style="display:none;">
         <span class="em">🖋️</span>
         まだ句がありません。図鑑からスポットを見つけて、最初の一句を詠んでみましょう。
+      </div>
+      <div id="kushuSearchEmpty" class="empty-state" style="display:none;">
+        <span class="em">🔍</span>条件に一致する句が見つかりませんでした。
       </div>
     </section>
 
