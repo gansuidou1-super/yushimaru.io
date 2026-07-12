@@ -11,6 +11,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <style>
   :root{
     --ink:#16151C;
@@ -296,6 +297,70 @@
   @media (prefers-reduced-motion: reduce){
     .placard{transition:none;}
   }
+
+  /* ---------- Profile page ---------- */
+  .profile-wrap{max-width:720px;margin:0 auto;padding:48px 0 80px;}
+  .profile-hero{text-align:center;margin-bottom:48px;}
+  .profile-avatar{
+    width:96px;height:96px;border-radius:50%;border:2px solid var(--brass);
+    margin:0 auto 20px;display:block;object-fit:cover;background:var(--ink-3);
+  }
+  .profile-name{font-family:'Fraunces',serif;font-size:32px;font-weight:600;margin:0 0 4px;}
+  .profile-name-en{font-family:'IBM Plex Mono',monospace;font-size:13px;color:var(--brass-light);letter-spacing:0.1em;margin:0 0 12px;}
+  .profile-role{font-size:15px;color:var(--plaster-2);margin:0 0 6px;}
+  .profile-role-en{font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--verdigris);letter-spacing:0.06em;margin:0 0 20px;}
+  .profile-bio{font-size:15px;line-height:1.8;color:var(--plaster-2);max-width:480px;margin:0 auto 24px;}
+  .profile-links{display:flex;justify-content:center;gap:12px;flex-wrap:wrap;margin-bottom:32px;}
+  .profile-link{
+    font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:0.05em;
+    color:var(--chalk);border:1px solid var(--line);padding:7px 14px;border-radius:999px;
+    text-decoration:none;transition:all .2s;
+  }
+  .profile-link:hover{border-color:var(--brass-light);color:var(--brass-light);}
+  .card-download-btn{
+    font-family:'IBM Plex Mono',monospace;font-size:12px;letter-spacing:0.04em;
+    background:var(--brass-light);color:var(--ink);border:none;
+    padding:12px 28px;border-radius:999px;cursor:pointer;margin:0 auto;display:block;
+    transition:all .2s;
+  }
+  .card-download-btn:hover{background:var(--chalk);}
+
+  /* ---------- Business card ---------- */
+  .card-preview-wrap{
+    border:1px solid var(--line);border-radius:8px;padding:32px;
+    background:var(--ink-2);margin-bottom:24px;display:flex;justify-content:center;
+  }
+  #businessCard{
+    width:540px;height:300px;
+    background:linear-gradient(135deg,#16151C 60%,#1D1C24);
+    border:1px solid rgba(176,141,87,0.4);border-radius:8px;
+    padding:40px 48px;display:flex;flex-direction:column;justify-content:space-between;
+    position:relative;overflow:hidden;flex-shrink:0;
+  }
+  #businessCard::before{
+    content:'';position:absolute;top:-60px;right:-60px;
+    width:240px;height:240px;border-radius:50%;
+    background:radial-gradient(circle,rgba(176,141,87,0.12),transparent 70%);
+  }
+  #businessCard::after{
+    content:'';position:absolute;bottom:-2px;left:0;right:0;height:3px;
+    background:linear-gradient(90deg,transparent,rgba(176,141,87,0.6),transparent);
+  }
+  .bc-top{display:flex;justify-content:space-between;align-items:flex-start;}
+  .bc-wordmark{font-family:'Fraunces',serif;font-size:13px;color:rgba(176,141,87,0.5);letter-spacing:0.08em;}
+  .bc-name-wrap{}
+  .bc-name{font-family:'Fraunces',serif;font-size:28px;font-weight:600;color:#F3EFE6;margin:0 0 2px;line-height:1.1;}
+  .bc-name-en{font-family:'IBM Plex Mono',monospace;font-size:11px;color:rgba(217,181,131,0.8);letter-spacing:0.12em;margin:0;}
+  .bc-role{font-family:'IBM Plex Mono',monospace;font-size:10px;color:rgba(91,138,130,0.9);letter-spacing:0.1em;text-transform:uppercase;margin:8px 0 0;}
+  .bc-bottom{display:flex;justify-content:space-between;align-items:flex-end;}
+  .bc-links{display:flex;flex-direction:column;gap:4px;}
+  .bc-link{font-family:'IBM Plex Mono',monospace;font-size:10px;color:rgba(234,227,214,0.55);letter-spacing:0.04em;}
+  .bc-site{font-family:'IBM Plex Mono',monospace;font-size:11px;color:rgba(217,181,131,0.7);letter-spacing:0.05em;}
+  @media(max-width:600px){
+    #businessCard{width:100%;max-width:380px;height:220px;padding:28px 28px;}
+    .bc-name{font-size:22px;}
+    .card-preview-wrap{padding:16px;}
+  }
 </style>
 </head>
 <body>
@@ -327,7 +392,7 @@ const db = firebase.firestore();
 const provider = new firebase.auth.GoogleAuthProvider();
 
 let state = {
-  view: 'public',        // 'public' | 'studio' | 'desk'
+  view: 'public',
   items: [],
   loaded: false,
   authEmail: null,
@@ -338,6 +403,7 @@ let state = {
   flippedId: null,
   editingId: null,
   showAddForm: false,
+  profile: null,
 };
 
 /* ---------------- data (Firestore) ---------------- */
@@ -361,6 +427,20 @@ async function refreshItems(){
     state.items = [];
   }
   state.loaded = true;
+}
+async function loadProfile(){
+  try{
+    const doc = await db.collection('meta').doc('profile').get();
+    state.profile = doc.exists ? doc.data() : {
+      name:'', nameEn:'', role:'', roleEn:'', bio:'', siteUrl:'', links:[]
+    };
+  }catch(e){
+    state.profile = { name:'', nameEn:'', role:'', roleEn:'', bio:'', siteUrl:'', links:[] };
+  }
+}
+async function saveProfile(data){
+  await db.collection('meta').doc('profile').set(data);
+  state.profile = data;
 }
 async function maybeSeed(){
   if(!isAdmin()) return;
@@ -397,6 +477,7 @@ function requestSignIn(){
       state.showLoginModal = false;
       await maybeSeed();
       await refreshItems();
+      await loadProfile();
       render();
     }else{
       state.deniedEmail = email + ' ではアクセスできません';
@@ -425,6 +506,7 @@ auth.onAuthStateChanged(async (user) => {
     state.authPicture = user.photoURL;
     await maybeSeed();
     await refreshItems();
+    await loadProfile();
     render();
   }
 });
@@ -699,10 +781,37 @@ function renderAddForm(){
 
 function renderDesk(){
   const items = [...state.items];
+  const p = state.profile || {};
+  const linksJson = JSON.stringify(p.links||[]).replace(/"/g,'&quot;');
   return `
     <div class="desk-toolbar">
       <div class="studio-badge"><span class="dot"></span>Studio — 編集</div>
     </div>
+
+    <div class="item-row" style="margin-bottom:28px;">
+      <div style="font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.08em;color:var(--brass-light);text-transform:uppercase;margin-bottom:16px;">プロフィール編集</div>
+      <div class="field-grid">
+        <div><label>名前（日本語）</label><input type="text" id="p_name" value="${escapeHtml(p.name||'')}"></div>
+        <div><label>Name (English)</label><input type="text" id="p_nameEn" value="${escapeHtml(p.nameEn||'')}"></div>
+      </div>
+      <div class="field-grid">
+        <div><label>肩書き（日本語）</label><input type="text" id="p_role" value="${escapeHtml(p.role||'')}"></div>
+        <div><label>Role (English)</label><input type="text" id="p_roleEn" value="${escapeHtml(p.roleEn||'')}"></div>
+      </div>
+      <div class="field-grid full">
+        <div><label>一言（プロフィールページに表示）</label><textarea id="p_bio">${escapeHtml(p.bio||'')}</textarea></div>
+      </div>
+      <div class="field-grid full">
+        <div><label>サイトURL（名刺に表示）</label><input type="text" id="p_siteUrl" value="${escapeHtml(p.siteUrl||'')}"></div>
+      </div>
+      <div class="field-grid full">
+        <div><label>SNSリンク（JSON形式: [{"label":"X","url":"https://..."}]）</label><textarea id="p_links">${escapeHtml(JSON.stringify(p.links||[], null, 2))}</textarea></div>
+      </div>
+      <div style="display:flex;justify-content:flex-end;margin-top:12px;">
+        <button class="btn primary" onclick="saveProfileFromDesk()">プロフィールを保存</button>
+      </div>
+    </div>
+
     <div class="row-footer" style="margin-bottom:18px;">
       <div></div>
       <button class="btn primary" onclick="toggleAddForm()">＋ 新しい作品を追加</button>
@@ -715,6 +824,99 @@ function renderDesk(){
       </div>
     ` : items.map(fieldRow).join('')}
   `;
+}
+
+async function saveProfileFromDesk(){
+  let links = [];
+  try{
+    const raw = document.getElementById('p_links').value.trim();
+    if(raw) links = JSON.parse(raw);
+  }catch(e){
+    alert('SNSリンクのJSON形式が正しくありません。例: [{"label":"X","url":"https://x.com/xxx"}]');
+    return;
+  }
+  const data = {
+    name: document.getElementById('p_name').value.trim(),
+    nameEn: document.getElementById('p_nameEn').value.trim(),
+    role: document.getElementById('p_role').value.trim(),
+    roleEn: document.getElementById('p_roleEn').value.trim(),
+    bio: document.getElementById('p_bio').value.trim(),
+    siteUrl: document.getElementById('p_siteUrl').value.trim(),
+    links
+  };
+  try{
+    await saveProfile(data);
+    alert('プロフィールを保存しました。');
+  }catch(e){
+    alert('保存に失敗しました: ' + e.message);
+  }
+}
+
+function renderProfile(){
+  const p = state.profile || {};
+  const name = p.name || 'Your Name';
+  const nameEn = p.nameEn || '';
+  const role = p.role || '';
+  const roleEn = p.roleEn || '';
+  const bio = p.bio || '';
+  const siteUrl = p.siteUrl || window.location.href;
+  const links = p.links || [];
+  return `
+    <div class="profile-wrap">
+      <div class="profile-hero">
+        <div class="studio-badge" style="justify-content:center;margin-bottom:24px;"><span class="dot"></span>Profile</div>
+        <p class="profile-name">${escapeHtml(name)}</p>
+        ${nameEn ? `<p class="profile-name-en">${escapeHtml(nameEn)}</p>` : ''}
+        ${role ? `<p class="profile-role">${escapeHtml(role)}</p>` : ''}
+        ${roleEn ? `<p class="profile-role-en">${escapeHtml(roleEn)}</p>` : ''}
+        ${bio ? `<p class="profile-bio">${escapeHtml(bio)}</p>` : ''}
+        ${links.length > 0 ? `
+          <div class="profile-links">
+            ${links.map(l=>`<a class="profile-link" href="${escapeHtml(l.url)}" target="_blank" rel="noopener">${escapeHtml(l.label)}</a>`).join('')}
+          </div>
+        ` : ''}
+      </div>
+
+      <div class="card-preview-wrap">
+        <div id="businessCard">
+          <div class="bc-top">
+            <div class="bc-wordmark">The Atelier ·</div>
+          </div>
+          <div class="bc-name-wrap">
+            <p class="bc-name">${escapeHtml(name)}</p>
+            ${nameEn ? `<p class="bc-name-en">${escapeHtml(nameEn)}</p>` : ''}
+            ${roleEn ? `<p class="bc-role">${escapeHtml(roleEn)}</p>` : ''}
+          </div>
+          <div class="bc-bottom">
+            <div class="bc-links">
+              ${links.map(l=>`<span class="bc-link">${escapeHtml(l.label)}  ${escapeHtml(l.url)}</span>`).join('')}
+            </div>
+            <span class="bc-site">${escapeHtml(siteUrl)}</span>
+          </div>
+        </div>
+      </div>
+      <button class="card-download-btn" onclick="downloadCard()">名刺画像をダウンロード</button>
+    </div>
+  `;
+}
+
+async function downloadCard(){
+  const card = document.getElementById('businessCard');
+  if(!card){ alert('名刺が見つかりません。'); return; }
+  try{
+    const canvas = await html2canvas(card, {
+      scale: 3,
+      backgroundColor: null,
+      useCORS: true,
+      logging: false
+    });
+    const link = document.createElement('a');
+    link.download = 'atelier-card.png';
+    link.href = canvas.toDataURL('image/png');
+    link.click();
+  }catch(e){
+    alert('画像の生成に失敗しました: ' + e.message);
+  }
 }
 
 function toggleAddForm(){ state.showAddForm = !state.showAddForm; render(); }
@@ -929,6 +1131,7 @@ function renderNav(){
   if(isAdmin()){
     nav.innerHTML = `
       <span class="nav-link ${state.view==='public'?'active':''}" onclick="goTo('public')">公開ページ</span>
+      <span class="nav-link ${state.view==='profile'?'active':''}" onclick="goTo('profile')">プロフィール</span>
       <span class="nav-link ${state.view==='studio'?'active':''}" onclick="goTo('studio')">ギャラリー</span>
       <span class="nav-link ${state.view==='desk'?'active':''}" onclick="goTo('desk')">デスク</span>
       <div class="avatar-chip">
@@ -938,7 +1141,10 @@ function renderNav(){
       </div>
     `;
   }else{
-    nav.innerHTML = `<span class="nav-link" onclick="goTo('studio')">Studio →</span>`;
+    nav.innerHTML = `
+      <span class="nav-link ${state.view==='profile'?'active':''}" onclick="goTo('profile')">プロフィール</span>
+      <span class="nav-link" onclick="goTo('studio')">Studio →</span>
+    `;
   }
 }
 
@@ -966,6 +1172,8 @@ function render(){
   const c = document.getElementById('viewContainer');
   if(!state.loaded){
     c.innerHTML = `<div class="hero"><p>読み込み中…</p></div>`;
+  }else if(state.view === 'profile'){
+    c.innerHTML = renderProfile();
   }else if(state.view === 'studio' && isAdmin()){
     c.innerHTML = renderStudio();
   }else if(state.view === 'desk' && isAdmin()){
@@ -979,6 +1187,7 @@ function render(){
 (async function init(){
   render();
   await refreshItems();
+  await loadProfile();
   render();
 })();
 </script>
