@@ -23,7 +23,10 @@
       <h1>駿府みっけ帖</h1>
       <div class="sub">見つけて、詠む。</div>
     </div>
-    <div class="progress-pill">🀆 <span id="totalFoundCount">0</span>句</div>
+    <div class="topbar-right">
+      <button class="theme-toggle" id="themeToggle" aria-label="行灯モード切替">🌤️</button>
+      <div class="progress-pill">🀆 <span id="totalFoundCount">0</span>句</div>
+    </div>
   </header>
 
   <main>
@@ -43,6 +46,10 @@
         </div>
         <div class="section-head" style="margin-top:0;">
           <span class="hint" id="detailProgressHint"></span>
+          <div class="sort-toggle" id="sortToggle">
+            <button class="sort-btn active" data-sort="name">町名順</button>
+            <button class="sort-btn" data-sort="found_date">発見日順</button>
+          </div>
         </div>
         <div class="spot-grid" id="spotGrid"></div>
       </div>
@@ -66,6 +73,17 @@
 
     <!-- ============ 設定 ============ -->
     <section class="view" id="view-settei">
+      <div class="section-head"><h2>使い方</h2></div>
+      <div class="settings-list">
+        <button class="settings-row" id="showOnboardBtn">
+          <div>
+            <div class="label">アプリの使い方を見る</div>
+            <div class="desc">初回に表示したチュートリアルをもう一度見られます</div>
+          </div>
+          <span>›</span>
+        </button>
+      </div>
+
       <div class="section-head"><h2>データ</h2></div>
       <div class="settings-list">
         <button class="settings-row" id="exportBtn">
@@ -163,6 +181,33 @@
 
   <div class="toast" id="toast"></div>
   <div class="stamp-overlay" id="stampOverlay"><div class="stamp-mark">見つけた</div></div>
+
+  <!-- Onboarding (first launch) -->
+  <div class="modal-backdrop" id="onboardBackdrop">
+    <div class="modal-sheet onboard-sheet">
+      <div class="onboard-mark">🖋️🀆</div>
+      <h3>駿府みっけ帖へようこそ</h3>
+      <div class="onboard-steps">
+        <div class="onboard-step">
+          <div class="ostep-icon">📖</div>
+          <div class="ostep-text"><b>図鑑</b>で、街にある実在のスポット(プラモニュメントや町名碑)を巡ります。見つけたらタップして記録しましょう。</div>
+        </div>
+        <div class="onboard-step">
+          <div class="ostep-icon">📷🖋️</div>
+          <div class="ostep-text">記録するときは<b>写真(複数可)</b>と<b>一句・一言</b>を添えられます。五七五でなくてもOKです。</div>
+        </div>
+        <div class="onboard-step">
+          <div class="ostep-icon">🖋️</div>
+          <div class="ostep-text"><b>句集</b>で、集めた写真と句を時系列に振り返れます。あとから編集も可能です。</div>
+        </div>
+        <div class="onboard-step">
+          <div class="ostep-icon">🎖️</div>
+          <div class="ostep-text"><b>称号</b>で集めた数に応じたバッジが増えていきます。自分だけのテーマ図鑑も追加できます。</div>
+        </div>
+      </div>
+      <button class="btn-primary" id="onboardStartBtn">はじめる</button>
+    </div>
+  </div>
 
 </div>
 

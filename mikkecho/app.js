@@ -9,6 +9,8 @@
       founds: {},             // entryId -> { photo, haiku, date, ts, categoryId }  (preset checklist finds)
       unlocked: [],
       userEntries: {},        // categoryId -> [ {id,name,photo,haiku,date,ts} ]  (user-added, works for any category)
+      theme: 'day',           // 'day' | 'night' (行灯モード)
+      onboarded: false,
     };
   }
 
@@ -137,12 +139,67 @@
     toastTimer = setTimeout(() => toastEl.classList.remove('show'), 2400);
   }
 
+  let audioCtx = null;
+  function getAudioCtx() {
+    if (!audioCtx) {
+      const Ctx = window.AudioContext || window.webkitAudioContext;
+      if (Ctx) audioCtx = new Ctx();
+    }
+    return audioCtx;
+  }
+
+  function playStampSound() {
+    try {
+      const ctx = getAudioCtx();
+      if (!ctx) return;
+      if (ctx.state === 'suspended') ctx.resume();
+      const now = ctx.currentTime;
+
+      // low "thud" body
+      const osc = ctx.createOscillator();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(190, now);
+      osc.frequency.exponentialRampToValueAtTime(55, now + 0.13);
+      const gain = ctx.createGain();
+      gain.gain.setValueAtTime(0.0001, now);
+      gain.gain.exponentialRampToValueAtTime(0.5, now + 0.008);
+      gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.2);
+      osc.connect(gain).connect(ctx.destination);
+      osc.start(now);
+      osc.stop(now + 0.22);
+
+      // brief noise burst for the "paper" texture
+      const bufferSize = Math.floor(ctx.sampleRate * 0.05);
+      const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+      const data = buffer.getChannelData(0);
+      for (let i = 0; i < bufferSize; i++) data[i] = (Math.random() * 2 - 1) * (1 - i / bufferSize);
+      const noise = ctx.createBufferSource();
+      noise.buffer = buffer;
+      const noiseFilter = ctx.createBiquadFilter();
+      noiseFilter.type = 'bandpass';
+      noiseFilter.frequency.value = 1300;
+      const noiseGain = ctx.createGain();
+      noiseGain.gain.setValueAtTime(0.22, now);
+      noiseGain.gain.exponentialRampToValueAtTime(0.001, now + 0.05);
+      noise.connect(noiseFilter).connect(noiseGain).connect(ctx.destination);
+      noise.start(now);
+    } catch (e) { /* audio unavailable; ignore */ }
+  }
+
+  function playHaptic() {
+    if (navigator.vibrate) {
+      try { navigator.vibrate([12, 20, 30]); } catch (e) { /* ignore */ }
+    }
+  }
+
   function playStamp() {
     const el = document.getElementById('stampOverlay');
     el.classList.remove('play');
     void el.offsetWidth; // restart animation
     el.classList.add('play');
     setTimeout(() => el.classList.remove('play'), 700);
+    playStampSound();
+    playHaptic();
   }
 
   /* ============================================================
@@ -216,6 +273,43 @@
   const detailCategoryNameEl = document.getElementById('detailCategoryName');
   const detailProgressHintEl = document.getElementById('detailProgressHint');
   const spotGridEl = document.getElementById('spotGrid');
+  const sortToggleEl = document.getElementById('sortToggle');
+  let currentSortMode = 'name'; // 'name' | 'found_date'
+
+  sortToggleEl.querySelectorAll('.sort-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      currentSortMode = btn.dataset.sort;
+      sortToggleEl.querySelectorAll('.sort-btn').forEach(b => b.classList.toggle('active', b === btn));
+      renderCategoryDetail();
+    });
+  });
+
+  function buildDisplayItems(cat) {
+    const items = [];
+    if (cat.type === 'checklist') {
+      cat.entries.forEach(entry => {
+        items.push({ kind: 'preset', entry, rec: state.founds[entry.id] || null });
+      });
+    }
+    getUserEntries(cat.id).forEach(entry => {
+      items.push({ kind: 'user', entry, rec: entry });
+    });
+    return items;
+  }
+
+  function sortDisplayItems(items, mode) {
+    const arr = items.slice();
+    if (mode === 'found_date') {
+      arr.sort((a, b) => {
+        const at = a.rec ? (a.rec.ts || 0) : -1;
+        const bt = b.rec ? (b.rec.ts || 0) : -1;
+        return bt - at;
+      });
+    } else {
+      arr.sort((a, b) => a.entry.name.localeCompare(b.entry.name, 'ja'));
+    }
+    return arr;
+  }
 
   function renderCategoryDetail() {
     const cat = getCategory(currentCategoryId);
@@ -232,39 +326,28 @@
       showToast(hint ? '📍 ' + hint : '住所の登録はありません');
     }
 
-    if (cat.type === 'checklist') {
-      cat.entries.forEach(entry => {
-        const rec = state.founds[entry.id];
-        const card = document.createElement('div');
-        card.className = 'spot-card ' + (rec ? 'found' : 'undiscovered');
-        if (rec) {
-          card.innerHTML = `
-             ${rec.photos && rec.photos[0] ? `<img class="thumb" src="${rec.photos[0]}">` : `<div class="thumb">🀆</div>`}
-             <span class="stamp-badge">✓</span>
-             <div class="spot-name">${escapeHtml(entry.name)}</div>`;
-          card.addEventListener('click', () => openSpotDetail(entry.id, cat.id, 'preset'));
-        } else {
-          card.innerHTML = `
+    const items = sortDisplayItems(buildDisplayItems(cat), currentSortMode);
+
+    items.forEach(item => {
+      const { kind, entry, rec } = item;
+      const card = document.createElement('div');
+      if (kind === 'preset' && !rec) {
+        card.className = 'spot-card undiscovered';
+        card.innerHTML = `
              <div class="thumb">❔</div>
              ${entry.hint ? `<button class="hint-btn" style="position:absolute;top:4px;left:4px;width:22px;height:22px;border-radius:50%;border:none;background:rgba(43,58,85,0.85);color:#fff;font-size:11px;cursor:pointer;">📍</button>` : ''}
              <div class="spot-name">${escapeHtml(entry.name)}</div>`;
-          card.addEventListener('click', () => openFindModal({ mode: 'checklist', entryId: entry.id, categoryId: cat.id, name: entry.name, hint: entry.hint }));
-          const hintBtn = card.querySelector('.hint-btn');
-          if (hintBtn) hintBtn.addEventListener('click', (ev) => { ev.stopPropagation(); showHintToast(entry.hint); });
-        }
-        spotGridEl.appendChild(card);
-      });
-    }
-
-    // user-added entries (works for both checklist "found more than the preset list" and free-type categories)
-    getUserEntries(cat.id).slice().reverse().forEach(entry => {
-      const card = document.createElement('div');
-      card.className = 'spot-card found';
-      card.innerHTML = `
-        ${entry.photos && entry.photos[0] ? `<img class="thumb" src="${entry.photos[0]}">` : `<div class="thumb">🀆</div>`}
-        <span class="stamp-badge">✓</span>
-        <div class="spot-name">${escapeHtml(entry.name)}</div>`;
-      card.addEventListener('click', () => openSpotDetail(entry.id, cat.id, 'user'));
+        card.addEventListener('click', () => openFindModal({ mode: 'checklist', entryId: entry.id, categoryId: cat.id, name: entry.name, hint: entry.hint }));
+        const hintBtn = card.querySelector('.hint-btn');
+        if (hintBtn) hintBtn.addEventListener('click', (ev) => { ev.stopPropagation(); showHintToast(entry.hint); });
+      } else {
+        card.className = 'spot-card found';
+        card.innerHTML = `
+             ${rec.photos && rec.photos[0] ? `<img class="thumb" src="${rec.photos[0]}">` : `<div class="thumb">🀆</div>`}
+             <span class="stamp-badge">✓</span>
+             <div class="spot-name">${escapeHtml(entry.name)}</div>`;
+        card.addEventListener('click', () => openSpotDetail(entry.id, cat.id, kind));
+      }
       spotGridEl.appendChild(card);
     });
 
@@ -637,6 +720,38 @@
   tabButtons.forEach(b => b.addEventListener('click', () => switchView(b.dataset.view)));
 
   /* ============================================================
+     THEME (行灯モード)
+  ============================================================ */
+  const themeToggleBtn = document.getElementById('themeToggle');
+  function applyTheme() {
+    document.documentElement.setAttribute('data-theme', state.theme);
+    themeToggleBtn.textContent = state.theme === 'night' ? '🌙' : '🌤️';
+  }
+  function toggleTheme() {
+    state.theme = state.theme === 'night' ? 'day' : 'night';
+    saveState();
+    applyTheme();
+  }
+  themeToggleBtn.addEventListener('click', toggleTheme);
+
+  /* ============================================================
+     ONBOARDING
+  ============================================================ */
+  const onboardBackdrop = document.getElementById('onboardBackdrop');
+  function showOnboarding() {
+    onboardBackdrop.classList.add('open');
+  }
+  function closeOnboarding(markSeen) {
+    onboardBackdrop.classList.remove('open');
+    if (markSeen && !state.onboarded) {
+      state.onboarded = true;
+      saveState();
+    }
+  }
+  document.getElementById('onboardStartBtn').addEventListener('click', () => closeOnboarding(true));
+  document.getElementById('showOnboardBtn').addEventListener('click', () => showOnboarding());
+
+  /* ============================================================
      INIT
   ============================================================ */
   function renderAll() {
@@ -647,8 +762,10 @@
     if (document.getElementById('view-jisseki').classList.contains('active')) renderBadges();
   }
 
+  applyTheme();
   checkAchievements();
   renderAll();
+  if (!state.onboarded) showOnboarding();
 
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
