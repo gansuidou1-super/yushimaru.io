@@ -298,6 +298,100 @@
     .placard{transition:none;}
   }
 
+  /* ---------- Hero animation ---------- */
+  @keyframes fadeUp{
+    from{opacity:0;transform:translateY(18px);}
+    to{opacity:1;transform:translateY(0);}
+  }
+  .hero-animate .eyebrow{ animation:fadeUp .5s ease both; animation-delay:.05s; }
+  .hero-animate h1{ animation:fadeUp .6s ease both; animation-delay:.18s; }
+  .hero-animate p{ animation:fadeUp .6s ease both; animation-delay:.32s; }
+  .hero-animate .hero-stats{ animation:fadeUp .6s ease both; animation-delay:.44s; }
+
+  /* ---------- Hero stats ---------- */
+  .hero-stats{
+    display:flex;gap:28px;margin-top:24px;flex-wrap:wrap;
+  }
+  .stat-item{display:flex;flex-direction:column;gap:2px;}
+  .stat-num{
+    font-family:'Fraunces',serif;font-size:28px;font-weight:600;color:var(--brass-light);
+    line-height:1;
+  }
+  .stat-label{
+    font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:0.1em;
+    color:var(--plaster-2);text-transform:uppercase;
+  }
+  .visitor-count{
+    font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--plaster-2);
+    margin-top:8px;letter-spacing:0.04em;
+  }
+  .visitor-count span{color:var(--brass-light);}
+
+  /* ---------- Filter bar ---------- */
+  .filter-bar{
+    display:flex;gap:10px;align-items:center;flex-wrap:wrap;
+    margin-bottom:24px;padding:16px 0;
+    border-bottom:1px solid var(--line);
+  }
+  .search-input{
+    flex:1;min-width:160px;max-width:280px;
+    background:var(--ink-2);border:1px solid var(--line);color:var(--chalk);
+    padding:8px 14px;border-radius:999px;font-family:'IBM Plex Mono',monospace;font-size:12px;
+  }
+  .search-input:focus{outline:none;border-color:var(--brass-light);}
+  .search-input::placeholder{color:rgba(234,227,214,0.3);}
+  .tag-filter-btn{
+    font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:0.04em;
+    background:transparent;border:1px solid var(--line);color:var(--plaster-2);
+    padding:6px 14px;border-radius:999px;cursor:pointer;transition:all .15s;white-space:nowrap;
+  }
+  .tag-filter-btn:hover{border-color:var(--brass-light);color:var(--brass-light);}
+  .tag-filter-btn.active{background:var(--brass-light);color:var(--ink);border-color:var(--brass-light);}
+  .view-toggle{
+    display:flex;gap:4px;margin-left:auto;
+  }
+  .view-toggle-btn{
+    background:transparent;border:1px solid var(--line);color:var(--plaster-2);
+    width:32px;height:32px;border-radius:4px;cursor:pointer;
+    display:flex;align-items:center;justify-content:center;font-size:14px;transition:all .15s;
+  }
+  .view-toggle-btn.active{background:var(--brass-light);color:var(--ink);border-color:var(--brass-light);}
+
+  /* ---------- List mode ---------- */
+  .gallery-list{display:flex;flex-direction:column;gap:12px;margin-top:8px;}
+  .list-item{
+    border:1px solid var(--line);border-radius:4px;background:var(--ink-2);
+    display:flex;align-items:center;gap:16px;padding:14px 18px;cursor:pointer;
+    transition:border-color .2s;
+  }
+  .list-item:hover{border-color:var(--brass-light);}
+  .list-thumb{
+    width:48px;height:48px;border-radius:3px;flex-shrink:0;
+    background-size:cover;background-position:center;
+  }
+  .list-info{flex:1;min-width:0;}
+  .list-title{font-family:'Fraunces',serif;font-size:16px;color:var(--chalk);margin:0 0 2px;}
+  .list-tag{font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--brass-light);letter-spacing:0.06em;text-transform:uppercase;}
+  .list-desc{font-size:13px;color:var(--plaster-2);margin:4px 0 0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .list-open{
+    font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--brass-light);
+    text-decoration:none;white-space:nowrap;
+  }
+  .list-status-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;}
+  .list-status-dot.public{background:var(--brass-light);}
+  .list-status-dot.private{background:var(--verdigris);}
+
+  /* ---------- 3D hover ---------- */
+  .frame-outer{perspective:1200px;transform-style:preserve-3d;}
+  .frame{transition:transform .12s ease, box-shadow .12s ease;}
+  .frame:hover{box-shadow:0 24px 48px -16px rgba(0,0,0,0.7);}
+
+  /* ---------- No results ---------- */
+  .no-results{
+    text-align:center;padding:60px 24px;color:var(--plaster-2);
+    font-family:'Fraunces',serif;font-size:20px;
+  }
+
   /* ---------- Profile page ---------- */
   .profile-wrap{max-width:720px;margin:0 auto;padding:48px 0 80px;}
   .profile-hero{text-align:center;margin-bottom:48px;}
@@ -476,6 +570,10 @@ let state = {
   editingId: null,
   showAddForm: false,
   profile: null,
+  filterTag: '',
+  searchQuery: '',
+  listMode: false,
+  visitorCount: 0,
 };
 
 /* ---------------- data (Firestore) ---------------- */
@@ -513,6 +611,56 @@ async function loadProfile(){
 async function saveProfile(data){
   await db.collection('meta').doc('profile').set(data);
   state.profile = data;
+}
+
+/* ---------------- visitor counter ---------------- */
+async function incrementVisitor(){
+  try{
+    await db.collection('meta').doc('visitors').set(
+      { count: firebase.firestore.FieldValue.increment(1) },
+      { merge: true }
+    );
+  }catch(e){}
+}
+async function loadVisitorCount(){
+  try{
+    const doc = await db.collection('meta').doc('visitors').get();
+    state.visitorCount = doc.exists ? (doc.data().count || 0) : 0;
+  }catch(e){ state.visitorCount = 0; }
+}
+
+/* ---------------- filter / search helpers ---------------- */
+function getFilteredItems(items){
+  let result = items;
+  if(state.filterTag){
+    result = result.filter(i => (i.tags||'').toLowerCase().includes(state.filterTag.toLowerCase()));
+  }
+  if(state.searchQuery){
+    const q = state.searchQuery.toLowerCase();
+    result = result.filter(i =>
+      (i.title||'').toLowerCase().includes(q) ||
+      (i.description||'').toLowerCase().includes(q) ||
+      (i.tags||'').toLowerCase().includes(q)
+    );
+  }
+  return result;
+}
+function getAllTags(items){
+  const tags = new Set();
+  items.forEach(i => { if(i.tags) i.tags.split(/[,、\s]+/).forEach(t => { if(t) tags.add(t.trim()); }); });
+  return [...tags];
+}
+function setFilter(tag){
+  state.filterTag = state.filterTag === tag ? '' : tag;
+  render();
+}
+function setSearch(q){
+  state.searchQuery = q;
+  render();
+}
+function setListMode(v){
+  state.listMode = v;
+  render();
 }
 async function maybeSeed(){
   if(!isAdmin()) return;
@@ -712,37 +860,116 @@ function renderCard(item, showStatus){
   `;
 }
 
-function renderPublic(){
-  const items = state.items.filter(i => i.visibility === 'public');
+function renderFilterBar(allItems, showStatus){
+  const tags = getAllTags(allItems);
   return `
-    <div class="hero">
+    <div class="filter-bar">
+      <input class="search-input" type="text" placeholder="検索..." value="${escapeHtml(state.searchQuery)}"
+        oninput="setSearch(this.value)">
+      ${tags.map(t=>`
+        <button class="tag-filter-btn ${state.filterTag===t?'active':''}" onclick="setFilter('${escapeHtml(t)}')">${escapeHtml(t)}</button>
+      `).join('')}
+      <div class="view-toggle">
+        <button class="view-toggle-btn ${!state.listMode?'active':''}" onclick="setListMode(false)" title="グリッド表示">⊞</button>
+        <button class="view-toggle-btn ${state.listMode?'active':''}" onclick="setListMode(true)" title="リスト表示">☰</button>
+      </div>
+    </div>
+  `;
+}
+
+function renderListItem(item, showStatus){
+  const bg = item.imageUrl
+    ? `background-image:url('${escapeHtml(item.imageUrl)}');background-size:cover;background-position:center;`
+    : `background:${frameBg(item.title)};`;
+  return `
+    <div class="list-item" onclick="window.open('${escapeHtml(item.url)}','_blank')">
+      ${showStatus ? `<div class="list-status-dot ${item.visibility}"></div>` : ''}
+      <div class="list-thumb" style="${bg}"></div>
+      <div class="list-info">
+        <div class="list-title">${escapeHtml(item.title)}</div>
+        ${item.tags ? `<div class="list-tag">${escapeHtml(item.tags)}</div>` : ''}
+        ${item.description ? `<div class="list-desc">${escapeHtml(item.description)}</div>` : ''}
+      </div>
+      <div style="display:flex;gap:10px;align-items:center;">
+        <button class="qr-btn" style="font-size:10px;padding:5px 10px;" onclick="event.stopPropagation();showQR('${escapeHtml(item.url)}','${escapeHtml(item.title)}')">QR</button>
+        <a class="list-open" href="${escapeHtml(item.url)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">開く ↗</a>
+      </div>
+    </div>
+  `;
+}
+
+function renderPublic(){
+  const publicItems = state.items.filter(i => i.visibility === 'public');
+  const filtered = getFilteredItems(publicItems);
+  const tags = getAllTags(publicItems);
+  const totalPublic = publicItems.length;
+  const totalTags = getAllTags(state.items.filter(i=>i.visibility==='public')).length;
+
+  return `
+    <div class="hero hero-animate">
       <div class="eyebrow">Exhibition — Open to all</div>
       <h1>締め切りのない夜に、<br>生まれたものたち。</h1>
       <p>気が向いたら、触ってみてください。<br>タップすると、もう少し見えてきます。</p>
-    </div>
-    ${items.length === 0 ? `
-      <div class="empty-state">
-        <h3>まだ展示がありません</h3>
-        <p>作品が追加されると、ここに並びます。</p>
+      <div class="hero-stats">
+        <div class="stat-item">
+          <span class="stat-num">${totalPublic}</span>
+          <span class="stat-label">Works</span>
+        </div>
+        ${totalTags > 0 ? `<div class="stat-item">
+          <span class="stat-num">${totalTags}</span>
+          <span class="stat-label">Categories</span>
+        </div>` : ''}
+        ${state.visitorCount > 0 ? `<div class="stat-item">
+          <span class="stat-num">${state.visitorCount.toLocaleString()}</span>
+          <span class="stat-label">Visitors</span>
+        </div>` : ''}
       </div>
-    ` : `<div class="gallery">${items.map(i=>renderCard(i,false)).join('')}</div>`}
+    </div>
+    ${totalPublic > 0 ? renderFilterBar(publicItems, false) : ''}
+    ${filtered.length === 0 ? `
+      <div class="no-results">該当する作品がありません。</div>
+    ` : state.listMode
+      ? `<div class="gallery-list">${filtered.map(i=>renderListItem(i,false)).join('')}</div>`
+      : `<div class="gallery">${filtered.map(i=>renderCard(i,false)).join('')}</div>`
+    }
   `;
 }
 
 function renderStudio(){
-  const items = [...state.items];
+  const allItems = [...state.items];
+  const filtered = getFilteredItems(allItems);
   return `
-    <div class="hero" style="padding-top:36px;padding-bottom:0;">
+    <div class="hero hero-animate" style="padding-top:36px;padding-bottom:0;">
       <div class="studio-badge"><span class="dot"></span>Studio — 非公開閲覧</div>
       <h1 style="font-size:clamp(28px,4vw,38px);">すべての作品</h1>
       <p>公開・非公開すべてのアイテムを確認できます。金色は公開、緑は非公開です。</p>
+      <div class="hero-stats">
+        <div class="stat-item">
+          <span class="stat-num">${allItems.length}</span>
+          <span class="stat-label">Total</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-num">${allItems.filter(i=>i.visibility==='public').length}</span>
+          <span class="stat-label">Public</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-num">${allItems.filter(i=>i.visibility==='private').length}</span>
+          <span class="stat-label">Private</span>
+        </div>
+      </div>
     </div>
-    ${items.length === 0 ? `
+    ${allItems.length > 0 ? renderFilterBar(allItems, true) : ''}
+    ${allItems.length === 0 ? `
       <div class="empty-state">
         <h3>作品がまだありません</h3>
         <p>「デスク」から最初の作品を追加しましょう。</p>
       </div>
-    ` : `<div class="gallery">${items.map(i=>renderCard(i,true)).join('')}</div>`}
+    ` : filtered.length === 0 ? `
+      <div class="no-results">該当する作品がありません。</div>
+    ` : state.listMode
+      ? `<div class="gallery-list">${filtered.map(i=>renderListItem(i,true)).join('')}</div>`
+      : `<div class="gallery">${filtered.map(i=>renderCard(i,true)).join('')}</div>`
+    }
   `;
 }
 
@@ -1247,19 +1474,44 @@ function render(){
     requestAnimationFrame(initCardQR);
   }else if(state.view === 'studio' && isAdmin()){
     c.innerHTML = renderStudio();
+    requestAnimationFrame(attach3DHover);
   }else if(state.view === 'desk' && isAdmin()){
     c.innerHTML = renderDesk();
   }else{
     c.innerHTML = renderPublic();
+    requestAnimationFrame(attach3DHover);
   }
   renderModal();
 }
 
+/* ---------------- 3D hover effect ---------------- */
+function attach3DHover(){
+  document.querySelectorAll('.frame').forEach(card => {
+    if(card._3dAttached) return;
+    card._3dAttached = true;
+    card.addEventListener('mousemove', (e) => {
+      const r = card.getBoundingClientRect();
+      const x = (e.clientX - r.left) / r.width - 0.5;
+      const y = (e.clientY - r.top) / r.height - 0.5;
+      card.style.transform = `rotateY(${x * 10}deg) rotateX(${-y * 8}deg) scale(1.02)`;
+    });
+    card.addEventListener('mouseleave', () => {
+      card.style.transform = '';
+    });
+  });
+}
+
 (async function init(){
   render();
-  await refreshItems();
-  await loadProfile();
+  await Promise.all([refreshItems(), loadProfile(), loadVisitorCount()]);
   render();
+  // Increment visitor count once per session
+  if(!sessionStorage.getItem('visited')){
+    sessionStorage.setItem('visited','1');
+    incrementVisitor();
+    state.visitorCount++;
+  }
+  attach3DHover();
 })();
 </script>
 </body>
