@@ -386,8 +386,36 @@
   .frame{transition:transform .12s ease, box-shadow .12s ease;}
   .frame:hover{box-shadow:0 24px 48px -16px rgba(0,0,0,0.7);}
 
-  /* ---------- No results ---------- */
-  .no-results{
+  /* ---------- Skeleton loading ---------- */
+  @keyframes shimmer{
+    0%{background-position:-600px 0;}
+    100%{background-position:600px 0;}
+  }
+  .skeleton{
+    background:linear-gradient(90deg, var(--ink-2) 25%, var(--ink-3) 50%, var(--ink-2) 75%);
+    background-size:1200px 100%;
+    animation:shimmer 1.4s infinite linear;
+    border-radius:3px;
+  }
+  .skeleton-hero{padding:56px 0 32px;}
+  .skeleton-eyebrow{height:12px;width:160px;margin-bottom:20px;}
+  .skeleton-h1-1{height:44px;width:72%;margin-bottom:10px;}
+  .skeleton-h1-2{height:44px;width:55%;margin-bottom:24px;}
+  .skeleton-p-1{height:14px;width:60%;margin-bottom:8px;}
+  .skeleton-p-2{height:14px;width:44%;margin-bottom:32px;}
+  .skeleton-stats{display:flex;gap:28px;margin-bottom:8px;}
+  .skeleton-stat{display:flex;flex-direction:column;gap:6px;}
+  .skeleton-stat-num{height:28px;width:40px;}
+  .skeleton-stat-label{height:10px;width:64px;}
+  .skeleton-gallery{
+    display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));
+    gap:28px;margin-top:32px;
+  }
+  .skeleton-card{border-radius:2px;overflow:hidden;}
+  .skeleton-art{height:168px;margin-bottom:0;}
+  .skeleton-placard{padding:14px 16px;}
+  .skeleton-title{height:16px;width:70%;margin-bottom:8px;}
+  .skeleton-tag{height:10px;width:40%;}
     text-align:center;padding:60px 24px;color:var(--plaster-2);
     font-family:'Fraunces',serif;font-size:20px;
   }
@@ -1464,11 +1492,42 @@ function renderModal(){
 }
 
 /* ---------------- main render ---------------- */
+function renderSkeleton(){
+  const cards = Array(6).fill(0).map(()=>`
+    <div class="skeleton-card">
+      <div class="skeleton skeleton-art"></div>
+      <div class="skeleton-placard" style="background:var(--ink-2);">
+        <div class="skeleton skeleton-title"></div>
+        <div class="skeleton skeleton-tag"></div>
+      </div>
+    </div>
+  `).join('');
+  return `
+    <div class="skeleton-hero">
+      <div class="skeleton skeleton-eyebrow"></div>
+      <div class="skeleton skeleton-h1-1"></div>
+      <div class="skeleton skeleton-h1-2"></div>
+      <div class="skeleton skeleton-p-1"></div>
+      <div class="skeleton skeleton-p-2"></div>
+      <div class="skeleton-stats">
+        ${Array(3).fill(0).map(()=>`
+          <div class="skeleton-stat">
+            <div class="skeleton skeleton-stat-num"></div>
+            <div class="skeleton skeleton-stat-label"></div>
+          </div>
+        `).join('')}
+      </div>
+    </div>
+    <div class="skeleton-gallery">${cards}</div>
+  `;
+}
+
 function render(){
   renderNav();
   const c = document.getElementById('viewContainer');
   if(!state.loaded){
-    c.innerHTML = `<div class="hero"><p>読み込み中…</p></div>`;
+    c.innerHTML = renderSkeleton();
+    return;
   }else if(state.view === 'profile'){
     c.innerHTML = renderProfile();
     requestAnimationFrame(initCardQR);
