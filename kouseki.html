@@ -1,0 +1,540 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>光跡 — 問いの記録</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,400&family=Zen+Old+Mincho:wght@400;500&family=Inter:wght@300;400;500&display=swap');
+
+  :root{
+    --void: #06070a;
+    --panel: rgba(13,15,20,0.55);
+    --text-primary: #ece8df;
+    --text-dim: #83848f;
+    --accent-violet: #a396ff;
+    --accent-rose: #e79482;
+    --accent-teal: #6fe0cb;
+    --line-hair: rgba(236,232,223,0.14);
+  }
+
+  *{ box-sizing:border-box; margin:0; padding:0; }
+
+  html,body{
+    width:100%; height:100%;
+    background:var(--void);
+    color:var(--text-primary);
+    font-family:'Inter', -apple-system, 'Hiragino Sans', 'Yu Gothic', sans-serif;
+    overflow:hidden;
+    -webkit-font-smoothing:antialiased;
+  }
+
+  #canvas{
+    position:fixed; inset:0; width:100%; height:100%; z-index:0;
+  }
+
+  .stage{
+    position:relative; z-index:2;
+    width:100%; height:100vh;
+    display:flex; align-items:center; justify-content:center;
+    flex-direction:column;
+    padding:6vh 6vw;
+  }
+
+  .veil{
+    position:fixed; inset:0; z-index:1;
+    background:radial-gradient(ellipse at 50% 40%, rgba(6,7,10,0.15) 0%, rgba(6,7,10,0.72) 68%, rgba(6,7,10,0.92) 100%);
+    pointer-events:none;
+  }
+
+  /* ---------- progress ---------- */
+  .progress-track{
+    position:fixed; top:0; left:0; height:2px; width:100%;
+    background:var(--line-hair); z-index:5;
+  }
+  .progress-fill{
+    height:100%; width:0%;
+    background:linear-gradient(90deg, var(--accent-violet), var(--accent-teal));
+    transition:width 0.9s cubic-bezier(.4,0,.2,1);
+  }
+
+  /* ---------- intro ---------- */
+  .breath{
+    width:64px; height:64px; border-radius:50%;
+    border:1px solid rgba(163,150,255,0.5);
+    margin-bottom:48px;
+    animation:breathe 5.4s ease-in-out infinite;
+  }
+  @keyframes breathe{
+    0%,100%{ transform:scale(0.82); opacity:0.35; box-shadow:0 0 0 0 rgba(163,150,255,0.0); }
+    50%{ transform:scale(1.15); opacity:0.9; box-shadow:0 0 40px 6px rgba(163,150,255,0.12); }
+  }
+
+  .eyebrow{
+    font-size:12px; letter-spacing:0.32em; text-transform:uppercase;
+    color:var(--text-dim); margin-bottom:22px; font-weight:400;
+  }
+
+  h1.title{
+    font-family:'Zen Old Mincho', serif;
+    font-size:clamp(28px, 4.4vw, 52px);
+    font-weight:500; letter-spacing:0.06em;
+    text-align:center; line-height:1.6;
+    margin-bottom:28px;
+  }
+
+  p.lede{
+    font-family:'Cormorant Garamond', serif;
+    font-style:italic; font-size:clamp(16px,1.8vw,20px);
+    color:var(--text-dim); text-align:center; max-width:520px;
+    line-height:1.9; margin-bottom:56px;
+  }
+
+  button{
+    font-family:'Inter', sans-serif; font-size:13px; letter-spacing:0.14em;
+    background:transparent; color:var(--text-primary);
+    border:1px solid rgba(236,232,223,0.3);
+    padding:16px 42px; cursor:pointer; text-transform:uppercase;
+    transition:all 0.5s cubic-bezier(.4,0,.2,1);
+    font-weight:400;
+  }
+  button:hover{
+    border-color:var(--accent-violet);
+    background:rgba(163,150,255,0.08);
+    letter-spacing:0.18em;
+  }
+  button:focus-visible{ outline:2px solid var(--accent-violet); outline-offset:4px; }
+  button.ghost{ border-color:transparent; color:var(--text-dim); }
+  button.ghost:hover{ color:var(--text-primary); border-color:rgba(236,232,223,0.3); background:none; letter-spacing:0.14em; }
+
+  .row{ display:flex; gap:18px; align-items:center; }
+
+  /* ---------- question screen ---------- */
+  .q-wrap{
+    display:none; flex-direction:column; align-items:center;
+    width:100%; max-width:640px;
+  }
+  .q-wrap.active{ display:flex; }
+
+  .q-count{
+    font-size:11px; letter-spacing:0.28em; color:var(--text-dim);
+    margin-bottom:26px; font-weight:400;
+  }
+
+  .q-text{
+    font-family:'Zen Old Mincho', serif;
+    font-size:clamp(21px, 2.6vw, 30px);
+    line-height:1.85; text-align:center;
+    margin-bottom:44px; letter-spacing:0.03em;
+    min-height:3.7em; display:flex; align-items:center;
+  }
+
+  textarea{
+    width:100%; min-height:100px;
+    background:transparent; color:var(--text-primary);
+    border:none; border-bottom:1px solid rgba(236,232,223,0.22);
+    font-family:'Cormorant Garamond', serif; font-size:19px; font-style:italic;
+    resize:none; text-align:center; padding:10px 4px 18px;
+    line-height:1.8; transition:border-color 0.4s;
+  }
+  textarea:focus{ outline:none; border-color:var(--accent-violet); }
+  textarea::placeholder{ color:rgba(131,132,143,0.5); font-style:italic; }
+
+  .q-actions{ margin-top:40px; }
+
+  /* ---------- final screen ---------- */
+  .final-wrap{ display:none; text-align:center; }
+  .final-wrap.active{ display:flex; flex-direction:column; align-items:center; }
+
+  h2.final-title{
+    font-family:'Zen Old Mincho', serif;
+    font-size:clamp(24px,3.4vw,38px); font-weight:500;
+    margin-bottom:18px; letter-spacing:0.05em;
+  }
+  p.final-sub{
+    font-family:'Cormorant Garamond', serif; font-style:italic;
+    color:var(--text-dim); font-size:17px; max-width:460px;
+    line-height:1.9; margin-bottom:46px;
+  }
+
+  .final-reading{
+    font-family:'Cormorant Garamond', serif; font-style:italic;
+    color:var(--text-primary); font-size:18px; max-width:480px;
+    line-height:2.05; margin-bottom:46px; opacity:0.92;
+  }
+  .final-reading b{
+    font-style:normal; font-weight:500; color:var(--accent-violet);
+  }
+
+  .fade-in{ animation:fadeIn 1.1s ease both; }
+  @keyframes fadeIn{ from{ opacity:0; transform:translateY(10px);} to{ opacity:1; transform:translateY(0);} }
+
+  footer.note{
+    position:fixed; bottom:22px; left:0; width:100%;
+    text-align:center; font-size:10px; letter-spacing:0.2em;
+    color:rgba(131,132,143,0.45); z-index:4; text-transform:uppercase;
+  }
+</style>
+</head>
+<body>
+
+<canvas id="canvas"></canvas>
+<div class="veil"></div>
+<div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
+
+<!-- INTRO -->
+<div class="stage" id="screenIntro">
+  <div class="breath"></div>
+  <div class="eyebrow">Seven Questions, One Trace</div>
+  <h1 class="title">光跡</h1>
+  <p class="lede">これは七つの問いです。<br>
+  正解はありません。急ぐ必要もありません。<br>
+  あなたが答えるたび、この暗闇にひとすじの光が生まれます。</p>
+  <button id="btnStart">はじめる</button>
+</div>
+
+<!-- QUESTIONS -->
+<div class="stage" id="screenQuestions" style="display:none;">
+  <div class="q-wrap active" id="qWrap">
+    <div class="q-count" id="qCount">問 1 / 7</div>
+    <div class="q-text" id="qText"></div>
+    <textarea id="qInput" placeholder="言葉にならなくても、そのままで構いません" rows="3"></textarea>
+    <div class="q-actions row">
+      <button class="ghost" id="btnSkip">答えずに進む</button>
+      <button id="btnNext">次へ</button>
+    </div>
+  </div>
+</div>
+
+<!-- FINAL -->
+<div class="stage" id="screenFinal" style="display:none;">
+  <div class="final-wrap active">
+    <div class="eyebrow">The Trace Is Yours</div>
+    <h2 class="final-title fade-in">これが、今のあなたの光跡です</h2>
+    <p class="final-sub fade-in">誰の光跡も、同じ形にはなりません。<br>
+    これは答えの記録ではなく、あなたがそこに在った証です。</p>
+    <p class="final-reading fade-in" id="finalReading"></p>
+    <div class="row fade-in">
+      <button id="btnSave">画像として残す</button>
+      <button class="ghost" id="btnRestart">もう一度、問いから</button>
+    </div>
+  </div>
+</div>
+
+<footer class="note">静かな場所で、ひとりのときに</footer>
+
+<script>
+(function(){
+  // ---------------- Canvas / generative art ----------------
+  const canvas = document.getElementById('canvas');
+  const ctx = canvas.getContext('2d');
+  let W, H, DPR;
+
+  function resize(){
+    DPR = Math.min(window.devicePixelRatio || 1, 2);
+    W = window.innerWidth; H = window.innerHeight;
+    canvas.width = W * DPR; canvas.height = H * DPR;
+    canvas.style.width = W + 'px'; canvas.style.height = H + 'px';
+    ctx.setTransform(DPR,0,0,DPR,0,0);
+  }
+  window.addEventListener('resize', resize);
+  resize();
+
+  const hues = [255, 165, 195, 275, 20]; // violet, teal-ish, blue, purple, rose (approx hue degrees)
+  let branches = [];       // completed branches, fully drawn
+  let growQueue = [];      // branches waiting to animate in (main + children of a cluster)
+  let growing = null;      // branch currently animating in
+  let ambient = [];        // twinkle particles
+
+  for(let i=0;i<70;i++){
+    ambient.push({
+      x: Math.random()*W, y: Math.random()*H,
+      r: Math.random()*1.1+0.2,
+      phase: Math.random()*Math.PI*2,
+      speed: 0.004 + Math.random()*0.006
+    });
+  }
+
+  function centerPoint(){
+    return { x: W/2, y: H*0.56 };
+  }
+
+  // break an answer into small legible fragments to weave into the light trail
+  function extractShards(text, max){
+    const cleaned = (text||'').replace(/[\s、。!?「」『』.,]/g,'');
+    if(cleaned.length < 2) return [];
+    const shards = [];
+    let i = 0;
+    while(i < cleaned.length && shards.length < max){
+      const len = 2 + Math.floor(Math.random()*3);
+      const chunk = cleaned.slice(i, i+len);
+      if(chunk.length >= 2) shards.push(chunk);
+      i += len + 1 + Math.floor(Math.random()*4);
+    }
+    return shards;
+  }
+
+  function walk(origin, steps, stepLen, startAngle){
+    let angle = startAngle;
+    let x = origin.x, y = origin.y;
+    const pts = [{x,y}];
+    for(let i=0;i<steps;i++){
+      angle += (Math.random()-0.5) * 0.85;
+      x += Math.cos(angle)*stepLen;
+      y += Math.sin(angle)*stepLen*0.72; // slightly flattened, root-like
+      pts.push({x,y});
+    }
+    return pts;
+  }
+
+  function attachShards(pts, hue, shardTexts){
+    const shards = [];
+    const usable = pts.length;
+    for(let i=0;i<shardTexts.length;i++){
+      const idx = Math.max(3, Math.floor(usable * ((i+1)/(shardTexts.length+1))));
+      const p = pts[Math.min(idx, usable-1)];
+      const prev = pts[Math.max(0, Math.min(idx, usable-1)-1)];
+      const dx = p.x - prev.x, dy = p.y - prev.y;
+      const nlen = Math.hypot(dx,dy) || 1;
+      const nx = -dy/nlen, ny = dx/nlen;
+      const off = 10 + Math.random()*14;
+      shards.push({
+        idx, text: shardTexts[i], hue,
+        x: p.x + nx*off, y: p.y + ny*off,
+        angle: Math.atan2(dy,dx)
+      });
+    }
+    return shards;
+  }
+
+  // build one full cluster (a main root, plus fractal sub-branches, plus embedded word shards)
+  function makeCluster(energy, seedIndex, text){
+    const origin = branches.length === 0 ? centerPoint() : pickAttachPoint();
+    const hue = hues[seedIndex % hues.length] + (Math.random()*14-7);
+    const steps = Math.round(10 + energy*46);
+    const stepLen = 4 + energy*3.2;
+    const startAngle = Math.random()*Math.PI*2;
+    const mainPts = walk(origin, steps, stepLen, startAngle);
+    const shardTexts = extractShards(text, Math.round(1 + energy*4));
+    const mainShards = attachShards(mainPts, hue, shardTexts);
+
+    const cluster = [{ pts: mainPts, hue, width: 0.7 + energy*1.7, revealed: 0, shards: mainShards }];
+
+    const childCount = energy > 0.35 ? (1 + Math.floor(energy*2.2)) : 0;
+    for(let c=0; c<childCount; c++){
+      const attachIdx = Math.floor(mainPts.length * (0.45 + Math.random()*0.45));
+      const attachPt = mainPts[Math.min(attachIdx, mainPts.length-1)];
+      const childEnergy = energy * (0.35 + Math.random()*0.35);
+      const childSteps = Math.round(6 + childEnergy*30);
+      const childAngle = startAngle + (Math.random()-0.5)*2.2;
+      const childPts = walk(attachPt, childSteps, stepLen*0.8, childAngle);
+      cluster.push({ pts: childPts, hue: hue + (Math.random()*10-5), width: 0.5 + childEnergy*1.1, revealed: 0, shards: [] });
+    }
+    return cluster;
+  }
+
+  function pickAttachPoint(){
+    const b = branches[branches.length-1];
+    const idx = Math.min(b.pts.length-1, Math.floor(b.pts.length * (0.55 + Math.random()*0.45)));
+    return b.pts[idx];
+  }
+
+  function drawBranch(b, count){
+    const n = Math.min(count, b.pts.length);
+    if(n >= 2){
+      ctx.save();
+      ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+      ctx.shadowBlur = 14;
+      ctx.shadowColor = `hsla(${b.hue}, 80%, 68%, 0.55)`;
+      ctx.strokeStyle = `hsla(${b.hue}, 70%, 78%, 0.75)`;
+      ctx.lineWidth = b.width;
+      ctx.beginPath();
+      ctx.moveTo(b.pts[0].x, b.pts[0].y);
+      for(let i=1;i<n;i++){ ctx.lineTo(b.pts[i].x, b.pts[i].y); }
+      ctx.stroke();
+      ctx.restore();
+    }
+    if(b.shards && b.shards.length){
+      for(const s of b.shards){
+        if(count < s.idx) continue;
+        const age = Math.min(1, (count - s.idx)/14);
+        if(age <= 0) continue;
+        ctx.save();
+        ctx.font = "italic 13px 'Cormorant Garamond', serif";
+        ctx.fillStyle = `hsla(${s.hue}, 60%, 88%, ${age*0.5})`;
+        ctx.translate(s.x, s.y);
+        ctx.rotate(Math.max(-0.3, Math.min(0.3, s.angle*0.25)));
+        ctx.fillText(s.text, 0, 0);
+        ctx.restore();
+      }
+    }
+  }
+
+  let t = 0;
+  function loop(){
+    t += 1;
+    ctx.clearRect(0,0,W,H);
+
+    // ambient twinkle
+    for(const p of ambient){
+      const a = 0.15 + Math.abs(Math.sin(t*p.speed + p.phase))*0.25;
+      ctx.beginPath();
+      ctx.fillStyle = `rgba(236,232,223,${a})`;
+      ctx.arc(p.x, p.y, p.r, 0, Math.PI*2);
+      ctx.fill();
+    }
+
+    for(const b of branches){ drawBranch(b, b.pts.length); }
+
+    if(!growing && growQueue.length){
+      growing = growQueue.shift();
+    }
+    if(growing){
+      growing.revealed += Math.max(1, growing.pts.length/42);
+      drawBranch(growing, growing.revealed);
+      if(growing.revealed >= growing.pts.length){
+        branches.push(growing);
+        growing = null;
+      }
+    }
+
+    requestAnimationFrame(loop);
+  }
+  loop();
+
+  function addLight(energy, seedIndex, text){
+    const cluster = makeCluster(energy, seedIndex, text);
+    growQueue.push(...cluster);
+  }
+
+  // ---------------- App flow ----------------
+  const questions = [
+    "あなたが心の奥底で、誰にも言えずにいることは何ですか。",
+    "もし今日が最後の一日だとしたら、何を悔やみますか。",
+    "あなたを『あなた』たらしめているのは、記憶ですか、それとも選んできた行いですか。",
+    "これまでの人生で、誰かに本当に理解されたと感じた瞬間はありましたか。",
+    "あなたが本当に恐れているのは、死ぬことですか、忘れられることですか。",
+    "生きていることの意味を、誰かに証明する必要があると思いますか。",
+    "ここまで正直に向き合ったあなたは、始める前と何か変わりましたか。"
+  ];
+
+  let qi = 0;
+  let answers = []; // { qIndex, text, elapsed, skipped }
+  const startTimes = [];
+  const screenIntro = document.getElementById('screenIntro');
+  const screenQuestions = document.getElementById('screenQuestions');
+  const screenFinal = document.getElementById('screenFinal');
+  const qCount = document.getElementById('qCount');
+  const qText = document.getElementById('qText');
+  const qInput = document.getElementById('qInput');
+  const progressFill = document.getElementById('progressFill');
+  const finalReading = document.getElementById('finalReading');
+
+  function truncate(s, n){ return s.length > n ? s.slice(0,n) + '…' : s; }
+
+  function buildReading(){
+    const answered = answers.filter(a => !a.skipped && a.text.length > 0);
+    const skippedCount = answers.filter(a => a.skipped).length;
+
+    if(answered.length === 0){
+      return 'あなたは、七つの問いすべてに沈黙で応えました。<br>それもまた、ひとつの誠実さです。';
+    }
+
+    let longest = answered[0];
+    for(const a of answered){ if(a.text.length > longest.text.length) longest = a; }
+    let slowest = answered[0];
+    for(const a of answered){ if(a.elapsed > slowest.elapsed) slowest = a; }
+
+    const lines = [];
+    lines.push(`あなたが最も言葉を注いだのは、<b>「${truncate(questions[longest.qIndex], 22)}」</b>という問いでした。`);
+    if(slowest.qIndex !== longest.qIndex){
+      lines.push(`そして最も長く立ち止まったのは、<b>「${truncate(questions[slowest.qIndex], 22)}」</b>という問いの前でした。`);
+    }
+    if(skippedCount > 0){
+      lines.push(`${skippedCount}つの問いには、あえて言葉を残しませんでした。沈黙もまた、光跡の一部です。`);
+    }
+    return lines.join('<br><br>');
+  }
+
+  function showQuestion(i){
+    qCount.textContent = `問 ${i+1} / ${questions.length}`;
+    qText.textContent = questions[i];
+    qInput.value = '';
+    qInput.focus();
+    progressFill.style.width = `${(i/questions.length)*100}%`;
+    startTimes[i] = Date.now();
+  }
+
+  document.getElementById('btnStart').addEventListener('click', ()=>{
+    screenIntro.style.display = 'none';
+    screenQuestions.style.display = 'flex';
+    showQuestion(0);
+  });
+
+  function advance(energy, text, skipped){
+    const seedIndex = qi;
+    const elapsed = (Date.now() - startTimes[qi]) / 1000;
+    answers.push({ qIndex: qi, text: text || '', elapsed, skipped: !!skipped });
+    addLight(energy, seedIndex, text);
+    qi++;
+    if(qi < questions.length){
+      showQuestion(qi);
+    } else {
+      progressFill.style.width = '100%';
+      finalReading.innerHTML = buildReading();
+      setTimeout(()=>{
+        screenQuestions.style.display = 'none';
+        screenFinal.style.display = 'flex';
+      }, 700);
+    }
+  }
+
+  function energyFromInput(){
+    const text = qInput.value.trim();
+    const elapsed = (Date.now() - startTimes[qi]) / 1000;
+    const lengthScore = Math.min(text.length / 140, 1);       // longer answers => more energy
+    const timeScore = Math.min(elapsed / 40, 1);                // more time spent => more energy
+    let e = lengthScore*0.65 + timeScore*0.35;
+    if(text.length === 0) e = 0.12;                             // even silence leaves a small trace
+    return Math.max(0.12, Math.min(1, e));
+  }
+
+  document.getElementById('btnNext').addEventListener('click', ()=>{
+    const text = qInput.value.trim();
+    advance(energyFromInput(), text, false);
+  });
+  document.getElementById('btnSkip').addEventListener('click', ()=>{
+    advance(0.12, '', true);
+  });
+  qInput.addEventListener('keydown', (e)=>{
+    if(e.key === 'Enter' && (e.metaKey || e.ctrlKey)){
+      const text = qInput.value.trim();
+      advance(energyFromInput(), text, false);
+    }
+  });
+
+  document.getElementById('btnRestart').addEventListener('click', ()=>{
+    branches = []; growQueue = []; growing = null; qi = 0; answers = [];
+    screenFinal.style.display = 'none';
+    screenIntro.style.display = 'flex';
+    progressFill.style.width = '0%';
+  });
+
+  document.getElementById('btnSave').addEventListener('click', ()=>{
+    // composite the canvas onto a solid background for a clean saved image
+    const out = document.createElement('canvas');
+    out.width = canvas.width; out.height = canvas.height;
+    const octx = out.getContext('2d');
+    octx.fillStyle = '#06070a';
+    octx.fillRect(0,0,out.width,out.height);
+    octx.drawImage(canvas, 0, 0);
+    const link = document.createElement('a');
+    link.download = 'kouseki.png';
+    link.href = out.toDataURL('image/png');
+    link.click();
+  });
+
+})();
+</script>
+</body>
+</html>
