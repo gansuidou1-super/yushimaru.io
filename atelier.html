@@ -386,6 +386,20 @@
   .frame{transition:transform .12s ease, box-shadow .12s ease;}
   .frame:hover{box-shadow:0 24px 48px -16px rgba(0,0,0,0.7);}
 
+  /* ---------- Art hover hint ---------- */
+  .art-hover-hint{
+    position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
+    font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:0.08em;
+    color:var(--chalk);background:rgba(22,21,28,0.75);
+    padding:8px 16px;border-radius:999px;border:1px solid rgba(176,141,87,0.4);
+    opacity:0;transition:opacity .2s;pointer-events:none;white-space:nowrap;
+  }
+  .frame-outer:hover .art-hover-hint{opacity:1;}
+  .no-results{
+    text-align:center;padding:60px 24px;color:var(--plaster-2);
+    font-family:'Fraunces',serif;font-size:20px;
+  }
+
   /* ---------- Skeleton loading ---------- */
   @keyframes shimmer{
     0%{background-position:-600px 0;}
@@ -593,6 +607,7 @@
 
   /* ---------- Custom cursor ---------- */
   body{cursor:none;}
+  *{cursor:none !important;}
   #customCursor{
     position:fixed;pointer-events:none;z-index:9999;
     width:10px;height:10px;border-radius:50%;
@@ -1028,22 +1043,20 @@ function renderCard(item, showStatus){
   const flipped = state.flippedId === item.id;
   const statusDot = showStatus ? `<div class="status-dot ${item.visibility}"></div>` : '';
   return `
-    <div class="frame-outer">
+    <div class="frame-outer" onclick="goToDetail('${item.id}')" style="cursor:pointer;">
       <div class="frame">
         <div class="art" style="${artStyle}">
           ${statusDot}
           <div class="tagline">${escapeHtml(item.title)}</div>
+          <div class="art-hover-hint">詳細を見る →</div>
         </div>
       </div>
       <div class="placard-wrap">
-        <div class="placard ${flipped?'flipped':''}" onclick="toggleFlip('${item.id}')">
+        <div class="placard ${flipped?'flipped':''}" onclick="event.stopPropagation();toggleFlip('${item.id}')">
           <div class="placard-face placard-front">
             <div class="p-title">${escapeHtml(item.title)}</div>
             ${item.tags ? `<div class="p-tag">${escapeHtml(item.tags)}</div>` : ''}
-            <div style="display:flex;gap:8px;margin-top:6px;">
-              <div class="hint" style="margin:0;">タップで詳細</div>
-              <button class="hint" style="margin:0;background:none;border:none;color:var(--brass-light);cursor:pointer;font-size:10px;font-family:'IBM Plex Mono',monospace;" onclick="event.stopPropagation();goToDetail('${item.id}')">詳細ページ →</button>
-            </div>
+            <div class="hint">めくって詳細 / クリックで詳細ページ</div>
           </div>
           <div class="placard-face placard-back">
             <p class="p-desc">${escapeHtml(item.description || '説明はまだありません。')}</p>
