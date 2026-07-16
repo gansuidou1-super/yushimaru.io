@@ -159,11 +159,45 @@
 
   .final-reading{
     font-family:'Cormorant Garamond', serif; font-style:italic;
-    color:var(--text-primary); font-size:18px; max-width:480px;
-    line-height:2.05; margin-bottom:46px; opacity:0.92;
+    color:var(--text-dim); font-size:15px; max-width:460px;
+    line-height:1.95; margin-bottom:40px; opacity:0.85;
   }
   .final-reading b{
     font-style:normal; font-weight:500; color:var(--accent-violet);
+  }
+
+  .final-poem{
+    font-family:'Cormorant Garamond', serif; font-style:italic;
+    color:var(--text-primary); font-size:19px; max-width:520px;
+    line-height:2.1; margin-bottom:30px;
+  }
+  .final-poem.loading{
+    color:var(--text-dim);
+    background:linear-gradient(100deg, var(--text-dim) 30%, var(--text-primary) 50%, var(--text-dim) 70%);
+    background-size:200% auto;
+    -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color:transparent;
+    animation:shimmer 2.2s linear infinite;
+  }
+  @keyframes shimmer{
+    0%{ background-position:200% 0; }
+    100%{ background-position:-200% 0; }
+  }
+
+  .row.fade-in{ flex-wrap:wrap; justify-content:center; row-gap:14px; }
+
+  .echo-overlay{
+    position:fixed; inset:0; z-index:6;
+    display:flex; align-items:center; justify-content:center;
+    pointer-events:none; opacity:0;
+    transition:opacity 0.55s ease;
+    background:radial-gradient(circle at 50% 50%, rgba(6,7,10,0.35), rgba(6,7,10,0.7));
+  }
+  .echo-overlay.show{ opacity:1; }
+  .echo-word{
+    font-family:'Zen Old Mincho', serif; font-style:italic;
+    font-size:clamp(26px,4.2vw,44px); color:var(--accent-violet);
+    letter-spacing:0.14em;
+    text-shadow:0 0 34px rgba(163,150,255,0.55);
   }
 
   .fade-in{ animation:fadeIn 1.1s ease both; }
@@ -211,15 +245,17 @@
   <div class="final-wrap active">
     <div class="eyebrow">The Trace Is Yours</div>
     <h2 class="final-title fade-in">これが、今のあなたの光跡です</h2>
-    <p class="final-sub fade-in">誰の光跡も、同じ形にはなりません。<br>
-    これは答えの記録ではなく、あなたがそこに在った証です。</p>
+    <p class="final-poem loading fade-in" id="finalPoem">光を、言葉にしています…</p>
     <p class="final-reading fade-in" id="finalReading"></p>
     <div class="row fade-in">
       <button id="btnSave">画像として残す</button>
+      <button class="ghost" id="btnReread">違う言葉で、読み解く</button>
       <button class="ghost" id="btnRestart">もう一度、問いから</button>
     </div>
   </div>
 </div>
+
+<div class="echo-overlay" id="echoOverlay"><span class="echo-word" id="echoWord"></span></div>
 
 <footer class="note">静かな場所で、ひとりのときに</footer>
 
@@ -371,9 +407,19 @@
   }
 
   let t = 0;
+  let mouseX = W/2, mouseY = H/2, camX = 0, camY = 0;
+  window.addEventListener('mousemove', (e)=>{ mouseX = e.clientX; mouseY = e.clientY; });
+
   function loop(){
     t += 1;
     ctx.clearRect(0,0,W,H);
+
+    const targetX = (mouseX - W/2) * 0.018;
+    const targetY = (mouseY - H/2) * 0.018;
+    camX += (targetX - camX) * 0.04;
+    camY += (targetY - camY) * 0.04;
+    ctx.save();
+    ctx.translate(camX, camY);
 
     // ambient twinkle
     for(const p of ambient){
@@ -398,6 +444,7 @@
       }
     }
 
+    ctx.restore();
     requestAnimationFrame(loop);
   }
   loop();
@@ -429,6 +476,29 @@
   const qInput = document.getElementById('qInput');
   const progressFill = document.getElementById('progressFill');
   const finalReading = document.getElementById('finalReading');
+  const finalPoem = document.getElementById('finalPoem');
+  const echoOverlay = document.getElementById('echoOverlay');
+  const echoWord = document.getElementById('echoWord');
+  let transitioning = false;
+
+  function pickEchoWord(text){
+    const cleaned = (text || '').replace(/[\s、。!?「」『』.,]/g, '');
+    if(cleaned.length < 2) return null;
+    const len = Math.min(cleaned.length, 3 + Math.floor(Math.random()*3));
+    const start = Math.floor(Math.random() * (cleaned.length - len + 1));
+    return cleaned.slice(start, start + len);
+  }
+
+  function showEcho(text, cb){
+    const word = pickEchoWord(text);
+    if(!word){ cb(); return; }
+    echoWord.textContent = word;
+    echoOverlay.classList.add('show');
+    setTimeout(()=>{
+      echoOverlay.classList.remove('show');
+      setTimeout(cb, 500);
+    }, 950);
+  }
 
   function truncate(s, n){ return s.length > n ? s.slice(0,n) + '…' : s; }
 
@@ -456,6 +526,60 @@
     return lines.join('<br><br>');
   }
 
+  function escapeHtml(s){
+    return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+
+  function formatQA(){
+    return answers.map(a=>{
+      const q = questions[a.qIndex];
+      const ans = (a.skipped || !a.text) ? '(答えず、沈黙のままにした)' : a.text;
+      return `問い: ${q}\n答え: ${ans}`;
+    }).join('\n\n');
+  }
+
+  async function generateAIReading(){
+    const systemPrompt = `あなたは静かな夜に語りかける、詩的で率直な書き手です。以下はある人が七つの実存的な問い(死、記憶、孤独、恐れ、生きる意味など)に答えた記録です。これを読んで、その人だけに向けた短い一節を日本語で書いてください。
+
+条件:
+- 150〜220文字程度。
+- 分析・診断・要約はしない。「あなたは〜な人ですね」という決めつけをしない。
+- 「あなたは一人じゃない」「大丈夫」のような慰めの決まり文句は使わない。
+- 相手が書いた具体的な内容にさりげなく触れてよいが、そのまま引用はしない。
+- 結論や解決を提示しない。むしろ新しい小さな問い、または余韻で終える。
+- 二人称(「あなたは」)、静かで詩的な文体。装飾的すぎない。
+- 出力は本文のみ。前置き、記号、タイトル、括弧書きの説明は一切つけない。`;
+
+    const response = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model: "claude-sonnet-4-6",
+        max_tokens: 1000,
+        system: systemPrompt,
+        messages: [{ role: "user", content: formatQA() }]
+      })
+    });
+    const data = await response.json();
+    const text = (data.content || []).map(b => b.text || '').join('').trim();
+    if(!text) throw new Error('empty response');
+    return text;
+  }
+
+  function requestPoem(){
+    finalPoem.classList.add('loading');
+    finalPoem.textContent = '光を、言葉にしています…';
+    generateAIReading()
+      .then(text=>{
+        finalPoem.classList.remove('loading');
+        finalPoem.innerHTML = escapeHtml(text).replace(/\n/g,'<br>');
+      })
+      .catch(()=>{
+        finalPoem.classList.remove('loading');
+        finalPoem.innerHTML = '言葉は届きませんでしたが、光跡はここに残りました。<br>それでも十分です。';
+      });
+  }
+
   function showQuestion(i){
     qCount.textContent = `問 ${i+1} / ${questions.length}`;
     qText.textContent = questions[i];
@@ -472,20 +596,24 @@
   });
 
   function advance(energy, text, skipped){
+    if(transitioning) return;
+    transitioning = true;
     const seedIndex = qi;
     const elapsed = (Date.now() - startTimes[qi]) / 1000;
     answers.push({ qIndex: qi, text: text || '', elapsed, skipped: !!skipped });
     addLight(energy, seedIndex, text);
     qi++;
     if(qi < questions.length){
-      showQuestion(qi);
+      showEcho(text, ()=>{ showQuestion(qi); transitioning = false; });
     } else {
       progressFill.style.width = '100%';
       finalReading.innerHTML = buildReading();
-      setTimeout(()=>{
+      showEcho(text, ()=>{
         screenQuestions.style.display = 'none';
         screenFinal.style.display = 'flex';
-      }, 700);
+        requestPoem();
+        transitioning = false;
+      });
     }
   }
 
@@ -513,11 +641,17 @@
     }
   });
 
+  document.getElementById('btnReread').addEventListener('click', ()=>{
+    requestPoem();
+  });
+
   document.getElementById('btnRestart').addEventListener('click', ()=>{
-    branches = []; growQueue = []; growing = null; qi = 0; answers = [];
+    branches = []; growQueue = []; growing = null; qi = 0; answers = []; transitioning = false;
     screenFinal.style.display = 'none';
     screenIntro.style.display = 'flex';
     progressFill.style.width = '0%';
+    finalPoem.classList.add('loading');
+    finalPoem.textContent = '光を、言葉にしています…';
   });
 
   document.getElementById('btnSave').addEventListener('click', ()=>{
