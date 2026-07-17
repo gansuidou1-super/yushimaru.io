@@ -608,6 +608,15 @@
   /* ---------- Custom cursor ---------- */
   body{cursor:none;}
   *{cursor:none !important;}
+  .hero h1, .hero p, .hero .eyebrow, .hero-stats,
+  .wordmark, .nav-link, .studio-badge,
+  .tagline, .p-title, .p-tag, .p-desc,
+  .detail-title, .detail-tag, .bc-label,
+  .stat-num, .stat-label, .profile-name, .profile-name-en,
+  .profile-role, .profile-role-en, .profile-bio{
+    user-select:none;
+    -webkit-user-select:none;
+  }
   #customCursor{
     position:fixed;pointer-events:none;z-index:9999;
     width:10px;height:10px;border-radius:50%;
