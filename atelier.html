@@ -3,7 +3,20 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>The Atelier</title>
+<title>The Atelier · 一ノ瀬ゆしろう</title>
+<meta name="description" content="締め切りのない夜に、生まれたものたち。一ノ瀬ゆしろうの作品ギャラリー。">
+<meta property="og:type" content="website">
+<meta property="og:title" content="The Atelier · 一ノ瀬ゆしろう">
+<meta property="og:description" content="締め切りのない夜に、生まれたものたち。">
+<meta property="og:url" content="https://gansuidou1-super.github.io/yushimaru.io/atelier.html">
+<meta property="og:image" content="https://gansuidou1-super.github.io/yushimaru.io/card-front.png">
+<meta property="og:image:width" content="1400">
+<meta property="og:image:height" content="700">
+<meta property="og:locale" content="ja_JP">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="The Atelier · 一ノ瀬ゆしろう">
+<meta name="twitter:description" content="締め切りのない夜に、生まれたものたち。">
+<meta name="twitter:image" content="https://gansuidou1-super.github.io/yushimaru.io/card-front.png">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%2316151C'/%3E%3Crect x='16' y='16' width='32' height='32' fill='none' stroke='%23B08D57' stroke-width='4'/%3E%3Ccircle cx='20' cy='20' r='2.5' fill='%23B08D57'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&family=Dancing+Script:wght@600&display=swap" rel="stylesheet">
@@ -398,6 +411,59 @@
   .no-results{
     text-align:center;padding:60px 24px;color:var(--plaster-2);
     font-family:'Fraunces',serif;font-size:20px;
+  }
+
+  /* ---------- Stagger card animation ---------- */
+  @keyframes cardIn{
+    from{opacity:0;transform:translateY(20px);}
+    to{opacity:1;transform:translateY(0);}
+  }
+  .gallery .frame-outer{
+    animation:cardIn .45s cubic-bezier(.4,0,.2,1) both;
+  }
+  .gallery .frame-outer:nth-child(1){animation-delay:.04s;}
+  .gallery .frame-outer:nth-child(2){animation-delay:.09s;}
+  .gallery .frame-outer:nth-child(3){animation-delay:.14s;}
+  .gallery .frame-outer:nth-child(4){animation-delay:.19s;}
+  .gallery .frame-outer:nth-child(5){animation-delay:.24s;}
+  .gallery .frame-outer:nth-child(6){animation-delay:.29s;}
+  .gallery .frame-outer:nth-child(7){animation-delay:.34s;}
+  .gallery .frame-outer:nth-child(8){animation-delay:.39s;}
+  .gallery .frame-outer:nth-child(n+9){animation-delay:.44s;}
+
+  /* ---------- WIP badge ---------- */
+  .wip-badge{
+    position:absolute;top:12px;left:12px;
+    font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:0.1em;
+    background:rgba(176,141,87,0.2);border:1px solid rgba(176,141,87,0.5);
+    color:var(--brass-light);padding:3px 8px;border-radius:999px;
+    text-transform:uppercase;
+  }
+  .status-dot.wip{background:#D9B583;}
+
+  /* ---------- Story field in detail ---------- */
+  .detail-story{
+    border-top:1px solid var(--line);margin-top:36px;padding-top:28px;
+  }
+  .detail-story-label{
+    font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:0.12em;
+    color:var(--brass-light);text-transform:uppercase;margin-bottom:14px;
+  }
+  .detail-story-text{
+    font-family:'Fraunces',serif;font-size:15px;line-height:1.9;
+    color:var(--plaster-2);font-style:italic;white-space:pre-wrap;
+  }
+
+  /* ---------- Mobile image picker button ---------- */
+  .mobile-img-btn{
+    display:none;
+    font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:0.04em;
+    color:var(--chalk);background:transparent;border:1px solid var(--line);
+    padding:7px 14px;border-radius:4px;margin-top:8px;
+  }
+  @media(max-width:640px){
+    .mobile-img-btn{display:inline-block;}
+    .img-uploader-hint .desktop-hint{display:none;}
   }
 
   /* ---------- Skeleton loading ---------- */
@@ -1050,11 +1116,13 @@ function renderCard(item, showStatus){
     ? `background-image:linear-gradient(rgba(22,21,28,0) 40%, rgba(22,21,28,0.88)), url('${escapeHtml(item.imageUrl)}');background-size:cover;background-position:center;`
     : `background:${frameBg(item.title)};`;
   const flipped = state.flippedId === item.id;
-  const statusDot = showStatus ? `<div class="status-dot ${item.visibility}"></div>` : '';
+  const wipBadge = item.wip ? `<div class="wip-badge">WIP</div>` : '';
+  const statusDot = showStatus ? `<div class="status-dot ${item.wip ? 'wip' : item.visibility}"></div>` : '';
   return `
     <div class="frame-outer" onclick="goToDetail('${item.id}')" style="cursor:pointer;">
       <div class="frame">
         <div class="art" style="${artStyle}">
+          ${wipBadge}
           ${statusDot}
           <div class="tagline">${escapeHtml(item.title)}</div>
           <div class="art-hover-hint">詳細を見る →</div>
@@ -1210,13 +1278,15 @@ function fieldRow(item){
       </div>
       <div class="field-grid field-grid-img">
         <div class="img-uploader" style="${imgStyle}" tabindex="0" onclick="document.getElementById('f_imgfile_${id}').click()">
-          ${!item.imageUrl ? '<span class="img-uploader-hint">クリックで選択<br>またはCtrl+Vで貼り付け</span>' : ''}
+          ${!item.imageUrl ? '<span class="img-uploader-hint">クリックで選択<br><span class="desktop-hint">またはCtrl+Vで貼り付け</span></span>' : ''}
         </div>
         <div>
           <label>タイトル</label>
           <input type="text" id="f_title_${id}" value="${escapeHtml(item.title)}">
-          <div style="margin-top:10px;">
+          <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;">
             <input type="file" accept="image/*" id="f_imgfile_${id}" style="display:none" onchange="handleImageChange(event,'${id}')">
+            <input type="file" accept="image/*" capture="environment" id="f_imgcam_${id}" style="display:none" onchange="handleImageChange(event,'${id}')">
+            <button class="mobile-img-btn" onclick="document.getElementById('f_imgcam_${id}').click()">📷 カメラ</button>
             ${item.imageUrl ? `<button class="btn small" onclick="event.stopPropagation();removeImage('${id}')">画像を削除</button>` : ''}
           </div>
         </div>
@@ -1239,13 +1309,28 @@ function fieldRow(item){
           <textarea id="f_desc_${id}">${escapeHtml(item.description)}</textarea>
         </div>
       </div>
+      <div class="field-grid full">
+        <div>
+          <label>制作ストーリー（詳細ページに表示）</label>
+          <textarea id="f_story_${id}" style="min-height:80px;">${escapeHtml(item.story||'')}</textarea>
+        </div>
+      </div>
       <div class="row-footer">
-        <div class="toggle">
-          <label class="switch">
-            <input type="checkbox" id="f_vis_${id}" ${item.visibility==='public'?'checked':''}>
-            <span class="slider"></span>
-          </label>
-          <span id="f_vis_label_${id}">${item.visibility==='public' ? '公開中（誰でも見られます）' : '非公開（あなただけ）'}</span>
+        <div style="display:flex;gap:16px;flex-wrap:wrap;align-items:center;">
+          <div class="toggle">
+            <label class="switch">
+              <input type="checkbox" id="f_vis_${id}" ${item.visibility==='public'?'checked':''}>
+              <span class="slider"></span>
+            </label>
+            <span id="f_vis_label_${id}">${item.visibility==='public' ? '公開中（誰でも見られます）' : '非公開（あなただけ）'}</span>
+          </div>
+          <div class="toggle">
+            <label class="switch">
+              <input type="checkbox" id="f_wip_${id}" ${item.wip?'checked':''} onchange="document.getElementById('f_wip_label_${id}').innerText=this.checked?'WIP（制作中）':'完成'">
+              <span class="slider"></span>
+            </label>
+            <span id="f_wip_label_${id}">${item.wip ? 'WIP（制作中）' : '完成'}</span>
+          </div>
         </div>
         <div class="row-actions">
           <button class="btn primary small" onclick="saveItem('${id}')">保存</button>
@@ -1469,7 +1554,9 @@ async function saveItem(id){
     url: document.getElementById(`f_url_${id}`).value.trim(),
     description: document.getElementById(`f_desc_${id}`).value.trim(),
     tags: document.getElementById(`f_tags_${id}`).value.trim(),
-    visibility: document.getElementById(`f_vis_${id}`).checked ? 'public' : 'private'
+    visibility: document.getElementById(`f_vis_${id}`).checked ? 'public' : 'private',
+    story: document.getElementById(`f_story_${id}`)?.value.trim() || '',
+    wip: document.getElementById(`f_wip_${id}`)?.checked || false
   };
   try{
     await db.collection('items').doc(id).update(updated);
@@ -1728,6 +1815,12 @@ function renderDetail(){
         <a class="detail-open-btn" href="${escapeHtml(item.url)}" target="_blank" rel="noopener">サイトを開く ↗</a>
         <button class="detail-qr-btn" onclick="showQR('${escapeHtml(item.url)}','${escapeHtml(item.title)}')">QRコード</button>
       </div>
+      ${item.story ? `
+        <div class="detail-story">
+          <div class="detail-story-label">制作ストーリー</div>
+          <div class="detail-story-text">${escapeHtml(item.story)}</div>
+        </div>
+      ` : ''}
     </div>
   `;
 }
