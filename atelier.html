@@ -239,12 +239,26 @@
   }
   .order-btn{
     background:none;border:1px solid var(--line);color:var(--plaster-2);
-    width:28px;height:28px;border-radius:3px;cursor:pointer;font-size:12px;
+    width:28px;height:28px;border-radius:3px;font-size:12px;
     display:flex;align-items:center;justify-content:center;padding:0;
     transition:all .15s;
   }
   .order-btn:hover:not(:disabled){border-color:var(--brass-light);color:var(--brass-light);}
-  .order-btn:disabled{opacity:0.2;cursor:default;}
+  .order-btn:disabled{opacity:0.2;}
+  .drag-handle{
+    position:absolute;left:0;top:0;bottom:0;width:36px;
+    display:flex;align-items:center;justify-content:center;
+    color:var(--plaster-2);font-size:18px;letter-spacing:2px;
+    border-right:1px solid var(--line);
+    transition:color .15s, background .15s;
+  }
+  .drag-handle:hover{color:var(--brass-light);background:rgba(176,141,87,0.06);}
+  .item-row{
+    border:1px solid var(--line);border-radius:4px;padding:20px 20px 20px 48px;margin-bottom:14px;
+    background:var(--ink-2);position:relative;transition:opacity .2s, transform .15s;
+  }
+  .item-row.drag-over{border-color:var(--brass-light);background:rgba(176,141,87,0.05);}
+  .item-row.dragging{opacity:0.4;transform:scale(0.98);}
   .field-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:12px;}
   .field-grid.full{grid-template-columns:1fr;}
   .field-grid-img{grid-template-columns:130px 1fr;}
@@ -412,6 +426,13 @@
     text-align:center;padding:60px 24px;color:var(--plaster-2);
     font-family:'Fraunces',serif;font-size:20px;
   }
+
+  /* ---------- Gallery filter animation ---------- */
+  @keyframes galleryFade{
+    from{opacity:0;transform:translateY(8px);}
+    to{opacity:1;transform:translateY(0);}
+  }
+  #galleryContainer{animation:galleryFade .25s ease both;}
 
   /* ---------- Stagger card animation ---------- */
   @keyframes cardIn{
@@ -641,19 +662,30 @@
     --mode-transition: background .3s ease, color .3s ease, border-color .3s ease;
   }
   .light-mode{
-    --ink:#F3EFE6;
-    --ink-2:#EAE3D6;
-    --ink-3:#DFD6C4;
-    --chalk:#16151C;
-    --plaster:#2A2620;
-    --plaster-2:#3A3228;
-    --line:rgba(22,21,28,0.12);
+    --ink:#F0EBE0;
+    --ink-2:#E6DFD2;
+    --ink-3:#D8CFC0;
+    --chalk:#1A1612;
+    --plaster:#2A2318;
+    --plaster-2:#4A3F30;
+    --line:rgba(42,35,24,0.14);
+    --verdigris:#3D7068;
+    --brass:#8A6A30;
+    --brass-light:#A07838;
   }
   .light-mode .atelier-root{
     background:
-      radial-gradient(ellipse 900px 500px at 15% -10%, rgba(176,141,87,0.08), transparent),
+      radial-gradient(ellipse 900px 500px at 15% -10%, rgba(176,141,87,0.1), transparent),
+      radial-gradient(ellipse 700px 500px at 100% 10%, rgba(61,112,104,0.06), transparent),
       var(--ink);
   }
+  .light-mode .topbar{border-bottom-color:rgba(42,35,24,0.12);}
+  .light-mode .frame{background:var(--ink-2);border-color:rgba(42,35,24,0.12);}
+  .light-mode .placard-back{background:var(--ink-3);}
+  .light-mode input[type=text],.light-mode textarea{background:var(--ink);border-color:rgba(42,35,24,0.18);color:var(--chalk);}
+  .light-mode .modal{background:var(--ink-2);}
+  .light-mode .bottom-nav{background:rgba(240,235,224,0.92);}
+  .light-mode #particleCanvas{opacity:0.15;}
   .mode-toggle{
     background:none;border:1px solid var(--line);color:var(--plaster-2);
     width:32px;height:32px;border-radius:999px;cursor:pointer;
@@ -1025,7 +1057,24 @@ auth.onAuthStateChanged(async (user) => {
   }
 });
 
-/* ---------------- navigation ---------------- */
+/* ---------------- navigation (hash router) ---------------- */
+const VIEW_MAP = { '': 'public', 'public': 'public', 'profile': 'profile', 'studio': 'studio', 'desk': 'desk' };
+
+function parseHash(){
+  const hash = location.hash.replace('#', '');
+  if(hash.startsWith('detail/')){
+    return { view: 'detail', id: hash.replace('detail/', '') };
+  }
+  return { view: VIEW_MAP[hash] || 'public', id: null };
+}
+
+function pushHash(view, id = null){
+  const h = view === 'detail' ? `detail/${id}` : (view === 'public' ? '' : view);
+  if(location.hash.replace('#','') !== h){
+    history.pushState({ view, id }, '', h ? `#${h}` : location.pathname + location.search);
+  }
+}
+
 function goTo(view){
   if((view === 'studio' || view === 'desk') && !isAdmin()){
     state.showLoginModal = true;
@@ -1033,10 +1082,36 @@ function goTo(view){
     return;
   }
   state.view = view;
+  state.detailItemId = null;
   state.showAddForm = false;
   state.editingId = null;
+  state.filterTag = '';
+  state.searchQuery = '';
+  pushHash(view);
+  window.scrollTo(0, 0);
   render();
 }
+
+function goToDetail(id){
+  state.detailItemId = id;
+  state.view = 'detail';
+  pushHash('detail', id);
+  window.scrollTo(0, 0);
+  render();
+}
+
+window.addEventListener('popstate', () => {
+  const { view, id } = parseHash();
+  if(view === 'detail' && id){
+    state.detailItemId = id;
+    state.view = 'detail';
+  }else{
+    state.view = view;
+    state.detailItemId = null;
+  }
+  render();
+});
+
 function closeModal(){
   state.showLoginModal = false;
   state.deniedEmail = null;
@@ -1191,6 +1266,10 @@ function updateFilterBarUI(){
 function renderGalleryOnly(items, showStatus){
   const container = document.getElementById('galleryContainer');
   if(!container) return;
+  // Reset animation
+  container.style.animation = 'none';
+  container.offsetHeight; // reflow
+  container.style.animation = '';
   const filtered = getFilteredItems(items);
   if(filtered.length === 0){
     container.innerHTML = `<div class="no-results">該当する作品がありません。</div>`;
@@ -1302,11 +1381,19 @@ function fieldRow(item){
   const idx = state.items.findIndex(i => i.id === id);
   const isFirst = idx === 0;
   const isLast = idx === state.items.length - 1;
+  const total = state.items.length;
   const imgStyle = item.imageUrl
     ? `background-image:url('${escapeHtml(item.imageUrl)}');background-size:cover;background-position:center;`
     : `background:${frameBg(item.title)};`;
   return `
-    <div class="item-row">
+    <div class="item-row" id="row_${id}"
+      draggable="true"
+      ondragstart="deskDragStart(event,'${id}')"
+      ondragover="deskDragOver(event,'${id}')"
+      ondragleave="deskDragLeave(event)"
+      ondrop="deskDrop(event,'${id}')"
+      ondragend="deskDragEnd(event)">
+      <div class="drag-handle" title="ドラッグして並び替え">⠿</div>
       <div class="row-order-btns">
         <button class="order-btn" onclick="moveItem('${id}',-1)" ${isFirst?'disabled':''} title="上へ">↑</button>
         <button class="order-btn" onclick="moveItem('${id}',1)" ${isLast?'disabled':''} title="下へ">↓</button>
@@ -1329,25 +1416,25 @@ function fieldRow(item){
       <div class="field-grid">
         <div>
           <label>タグ / カテゴリ</label>
-          <input type="text" id="f_tags_${id}" value="${escapeHtml(item.tags)}">
+          <input type="text" id="f_tags_${id}" value="${escapeHtml(item.tags)}" oninput="scheduleDraftSave('${id}')">
         </div>
       </div>
       <div class="field-grid full">
         <div>
           <label>URL</label>
-          <input type="text" id="f_url_${id}" value="${escapeHtml(item.url)}">
+          <input type="text" id="f_url_${id}" value="${escapeHtml(item.url)}" oninput="scheduleDraftSave('${id}')">
         </div>
       </div>
       <div class="field-grid full">
         <div>
           <label>説明</label>
-          <textarea id="f_desc_${id}">${escapeHtml(item.description)}</textarea>
+          <textarea id="f_desc_${id}" oninput="scheduleDraftSave('${id}')">${escapeHtml(item.description)}</textarea>
         </div>
       </div>
       <div class="field-grid full">
         <div>
           <label>制作ストーリー（詳細ページに表示）</label>
-          <textarea id="f_story_${id}" style="min-height:80px;">${escapeHtml(item.story||'')}</textarea>
+          <textarea id="f_story_${id}" style="min-height:80px;" oninput="scheduleDraftSave('${id}')">${escapeHtml(item.story||'')}</textarea>
         </div>
       </div>
       <div class="row-footer">
@@ -1366,8 +1453,10 @@ function fieldRow(item){
             </label>
             <span id="f_wip_label_${id}">${item.wip ? 'WIP（制作中）' : '完成'}</span>
           </div>
+          <span id="draft_ind_${id}" style="font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--plaster-2);"></span>
         </div>
         <div class="row-actions">
+          <button class="btn small" onclick="duplicateItem('${id}')">複製</button>
           <button class="btn primary small" onclick="saveItem('${id}')">保存</button>
           <button class="btn danger small" onclick="deleteItem('${id}')">削除</button>
         </div>
@@ -1583,6 +1672,32 @@ async function addItem(){
   await refreshItems();
   render();
 }
+/* draft auto-save */
+let _draftTimers = {};
+function scheduleDraftSave(id){
+  clearTimeout(_draftTimers[id]);
+  _draftTimers[id] = setTimeout(() => saveDraft(id), 800);
+}
+function saveDraft(id){
+  const draft = {
+    title: document.getElementById(`f_title_${id}`)?.value || '',
+    url: document.getElementById(`f_url_${id}`)?.value || '',
+    description: document.getElementById(`f_desc_${id}`)?.value || '',
+    tags: document.getElementById(`f_tags_${id}`)?.value || '',
+    story: document.getElementById(`f_story_${id}`)?.value || '',
+  };
+  localStorage.setItem(`draft_${id}`, JSON.stringify(draft));
+  const ind = document.getElementById(`draft_ind_${id}`);
+  if(ind){ ind.textContent = '下書き保存済'; ind.style.color = 'var(--verdigris)'; }
+}
+function loadDraft(id){
+  try{
+    const raw = localStorage.getItem(`draft_${id}`);
+    return raw ? JSON.parse(raw) : null;
+  }catch(e){ return null; }
+}
+function clearDraft(id){ localStorage.removeItem(`draft_${id}`); }
+
 async function saveItem(id){
   const updated = {
     title: document.getElementById(`f_title_${id}`).value.trim(),
@@ -1595,6 +1710,7 @@ async function saveItem(id){
   };
   try{
     await db.collection('items').doc(id).update(updated);
+    clearDraft(id);
   }catch(e){
     alert('保存に失敗しました。通信状態を確認してもう一度お試しください。');
     return;
@@ -1608,6 +1724,30 @@ async function deleteItem(id){
     await db.collection('items').doc(id).delete();
   }catch(e){
     alert('削除に失敗しました。通信状態を確認してもう一度お試しください。');
+    return;
+  }
+  await refreshItems();
+  render();
+}
+async function duplicateItem(id){
+  const item = state.items.find(i => i.id === id);
+  if(!item) return;
+  const copy = {
+    title: item.title + ' (コピー)',
+    url: item.url,
+    description: item.description || '',
+    tags: item.tags || '',
+    visibility: 'private',
+    story: item.story || '',
+    wip: item.wip || false,
+    imageUrl: item.imageUrl || '',
+    createdAt: Date.now(),
+    order: state.items.length
+  };
+  try{
+    await db.collection('items').add(copy);
+  }catch(e){
+    alert('複製に失敗しました。');
     return;
   }
   await refreshItems();
@@ -1727,25 +1867,60 @@ async function removeImage(id){
   }
 }
 
+/* ---------------- desk drag & drop reorder ---------------- */
+let _dragId = null;
+
+function deskDragStart(e, id){
+  _dragId = id;
+  e.dataTransfer.effectAllowed = 'move';
+  e.currentTarget.classList.add('dragging');
+}
+function deskDragOver(e, targetId){
+  e.preventDefault();
+  if(_dragId === targetId) return;
+  document.querySelectorAll('.item-row').forEach(r => r.classList.remove('drag-over'));
+  document.getElementById('row_' + targetId)?.classList.add('drag-over');
+}
+function deskDragLeave(e){
+  e.currentTarget.classList.remove('drag-over');
+}
+async function deskDrop(e, targetId){
+  e.preventDefault();
+  document.querySelectorAll('.item-row').forEach(r => r.classList.remove('drag-over','dragging'));
+  if(!_dragId || _dragId === targetId){ _dragId = null; return; }
+  const ids = state.items.map(i => i.id);
+  const fromIdx = ids.indexOf(_dragId);
+  const toIdx = ids.indexOf(targetId);
+  if(fromIdx === -1 || toIdx === -1){ _dragId = null; return; }
+  ids.splice(fromIdx, 1);
+  ids.splice(toIdx, 0, _dragId);
+  _dragId = null;
+  try{
+    const batch = db.batch();
+    ids.forEach((itemId, i) => batch.update(db.collection('items').doc(itemId), { order: i }));
+    await batch.commit();
+  }catch(e){ alert('並び替えの保存に失敗しました。'); return; }
+  await refreshItems();
+  render();
+}
+function deskDragEnd(e){
+  document.querySelectorAll('.item-row').forEach(r => r.classList.remove('drag-over','dragging'));
+  _dragId = null;
+}
+
 /* ---------------- arrow-button reorder ---------------- */
 async function moveItem(id, direction){
   const ids = state.items.map(i => i.id);
   const idx = ids.indexOf(id);
   const newIdx = idx + direction;
-  console.log('moveItem', id, direction, 'idx:', idx, 'newIdx:', newIdx, 'total:', ids.length);
   if(newIdx < 0 || newIdx >= ids.length) return;
   ids.splice(idx, 1);
   ids.splice(newIdx, 0, id);
-  console.log('new order:', ids);
   try{
     const batch = db.batch();
-    ids.forEach((itemId, i) => {
-      batch.update(db.collection('items').doc(itemId), { order: i });
-    });
+    ids.forEach((itemId, i) => batch.update(db.collection('items').doc(itemId), { order: i }));
     await batch.commit();
-    console.log('batch commit OK');
   }catch(e){
-    console.error('batch error:', e);
     alert('並び替えの保存に失敗しました: ' + e.message);
     return;
   }
@@ -1812,13 +1987,6 @@ function renderModal(){
 
 /* ---------------- main render ---------------- */
 /* ---------------- detail page ---------------- */
-function goToDetail(id){
-  state.detailItemId = id;
-  state.view = 'detail';
-  window.scrollTo(0, 0);
-  render();
-}
-
 function renderDetail(){
   const item = state.items.find(i => i.id === state.detailItemId);
   if(!item) return `<div class="detail-wrap"><p>作品が見つかりません。</p></div>`;
@@ -1827,7 +1995,7 @@ function renderDetail(){
     : `background:${frameBg(item.title)};`;
   return `
     <div class="detail-wrap">
-      <button class="detail-back" onclick="history.back(); goTo('public');">← 戻る</button>
+      <button class="detail-back" onclick="history.back()">← 戻る</button>
       <div class="detail-hero-img" style="${bg}"></div>
       ${item.tags ? `<div class="detail-tag">${escapeHtml(item.tags)}</div>` : ''}
       <h1 class="detail-title">${escapeHtml(item.title)}</h1>
@@ -2027,6 +2195,14 @@ function initParallax(){
   if(localStorage.getItem('lightMode') === '1'){
     state.lightMode = true;
     document.body.classList.add('light-mode');
+  }
+  // Parse initial hash for deep-linking
+  const { view, id } = parseHash();
+  if(view === 'detail' && id){
+    state.detailItemId = id;
+    state.view = 'detail';
+  }else if(view){
+    state.view = view;
   }
   render();
   await Promise.all([refreshItems(), loadProfile(), loadVisitorCount()]);
