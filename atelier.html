@@ -8,15 +8,15 @@
 <meta property="og:type" content="website">
 <meta property="og:title" content="The Atelier · 一ノ瀬ゆしろう">
 <meta property="og:description" content="締め切りのない夜に、生まれたものたち。">
-<meta property="og:url" content="https://gansuidou1-super.github.io/yushimaru.io/atelier.html">
-<meta property="og:image" content="https://gansuidou1-super.github.io/yushimaru.io/card-front.png">
+<meta property="og:url" content="https://atelier-e1661.web.app/atelier.html">
+<meta property="og:image" content="https://atelier-e1661.web.app/card-front.png">
 <meta property="og:image:width" content="1400">
 <meta property="og:image:height" content="700">
 <meta property="og:locale" content="ja_JP">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="The Atelier · 一ノ瀬ゆしろう">
 <meta name="twitter:description" content="締め切りのない夜に、生まれたものたち。">
-<meta name="twitter:image" content="https://gansuidou1-super.github.io/yushimaru.io/card-front.png">
+<meta name="twitter:image" content="https://atelier-e1661.web.app/card-front.png">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%2316151C'/%3E%3Crect x='16' y='16' width='32' height='32' fill='none' stroke='%23B08D57' stroke-width='4'/%3E%3Ccircle cx='20' cy='20' r='2.5' fill='%23B08D57'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&family=Dancing+Script:wght@600&display=swap" rel="stylesheet">
@@ -968,26 +968,6 @@ function getAllTags(items){
   items.forEach(i => { if(i.tags) i.tags.split(/[,、\s]+/).forEach(t => { if(t) tags.add(t.trim()); }); });
   return [...tags];
 }
-function setFilter(tag){
-  state.filterTag = state.filterTag === tag ? '' : tag;
-  const isPublic = state.view === 'public';
-  const items = isPublic ? state.items.filter(i=>i.visibility==='public') : [...state.items];
-  updateFilterBarUI();
-  renderGalleryOnly(items, !isPublic);
-}
-function setSearch(q){
-  state.searchQuery = q;
-  const isPublic = state.view === 'public';
-  const items = isPublic ? state.items.filter(i=>i.visibility==='public') : [...state.items];
-  renderGalleryOnly(items, !isPublic);
-}
-function setListMode(v){
-  state.listMode = v;
-  const isPublic = state.view === 'public';
-  const items = isPublic ? state.items.filter(i=>i.visibility==='public') : [...state.items];
-  updateFilterBarUI();
-  renderGalleryOnly(items, !isPublic);
-}
 async function maybeSeed(){
   if(!isAdmin()) return;
   try{
@@ -1237,29 +1217,91 @@ function renderFilterBar(allItems){
   return `
     <div class="filter-bar" id="filterBar">
       <input class="search-input" type="text" placeholder="検索..." value="${escapeHtml(state.searchQuery)}"
-        id="filterSearchInput"
-        oninput="onSearchInput(this.value)">
+        id="filterSearchInput">
       <div id="filterTagBtns" style="display:contents;">
         ${tags.map(t=>`
-          <button class="tag-filter-btn ${state.filterTag===t?'active':''}" data-tag="${escapeHtml(t)}" onclick="setFilter('${escapeHtml(t)}')">${escapeHtml(t)}</button>
+          <button class="tag-filter-btn ${state.filterTag===t?'active':''}" data-tag="${escapeHtml(t)}">${escapeHtml(t)}</button>
         `).join('')}
       </div>
       <div class="view-toggle">
-        <button class="view-toggle-btn ${!state.listMode?'active':''}" onclick="setListMode(false)" title="グリッド表示">⊞</button>
-        <button class="view-toggle-btn ${state.listMode?'active':''}" onclick="setListMode(true)" title="リスト表示">☰</button>
+        <button class="view-toggle-btn ${!state.listMode?'active':''}" id="viewModeGrid" title="グリッド表示">⊞</button>
+        <button class="view-toggle-btn ${state.listMode?'active':''}" id="viewModeList" title="リスト表示">☰</button>
       </div>
     </div>
   `;
 }
 
-/* フィルターバーのタグボタンのactive状態だけ更新（再描画なし） */
+/* フィルターバーにイベントを確実に登録する（onclick文字列ではなくaddEventListener） */
+function attachFilterBarEvents(){
+  const searchInput = document.getElementById('filterSearchInput');
+  if(searchInput && !searchInput._attached){
+    searchInput._attached = true;
+    searchInput.addEventListener('input', e => onSearchInput(e.target.value));
+  }
+
+  document.querySelectorAll('.tag-filter-btn').forEach(btn => {
+    if(btn._attached) return;
+    btn._attached = true;
+    btn.addEventListener('click', e => {
+      e.stopPropagation();
+      const tag = btn.dataset.tag;
+      state.filterTag = state.filterTag === tag ? '' : tag;
+      updateFilterBarUI();
+      const isPublic = state.view === 'public';
+      const items = isPublic ? state.items.filter(i=>i.visibility==='public') : [...state.items];
+      renderGalleryOnly(items, !isPublic);
+    });
+  });
+
+  const gridBtn = document.getElementById('viewModeGrid');
+  const listBtn = document.getElementById('viewModeList');
+  if(gridBtn && !gridBtn._attached){
+    gridBtn._attached = true;
+    gridBtn.addEventListener('click', () => {
+      state.listMode = false;
+      updateFilterBarUI();
+      const isPublic = state.view === 'public';
+      const items = isPublic ? state.items.filter(i=>i.visibility==='public') : [...state.items];
+      renderGalleryOnly(items, !isPublic);
+    });
+  }
+  if(listBtn && !listBtn._attached){
+    listBtn._attached = true;
+    listBtn.addEventListener('click', () => {
+      state.listMode = true;
+      updateFilterBarUI();
+      const isPublic = state.view === 'public';
+      const items = isPublic ? state.items.filter(i=>i.visibility==='public') : [...state.items];
+      renderGalleryOnly(items, !isPublic);
+    });
+  }
+}
+
+/* フィルターバーのactive状態だけ更新 */
 function updateFilterBarUI(){
   document.querySelectorAll('.tag-filter-btn').forEach(btn => {
     btn.classList.toggle('active', btn.dataset.tag === state.filterTag);
   });
-  document.querySelectorAll('.view-toggle-btn').forEach((btn, i) => {
-    btn.classList.toggle('active', i === 0 ? !state.listMode : state.listMode);
-  });
+  const gridBtn = document.getElementById('viewModeGrid');
+  const listBtn = document.getElementById('viewModeList');
+  if(gridBtn) gridBtn.classList.toggle('active', !state.listMode);
+  if(listBtn) listBtn.classList.toggle('active', state.listMode);
+}
+
+/* setFilter/setListModeはstateだけ変えてattachFilterBarEventsに委譲 */
+function setFilter(tag){
+  state.filterTag = state.filterTag === tag ? '' : tag;
+  updateFilterBarUI();
+  const isPublic = state.view === 'public';
+  const items = isPublic ? state.items.filter(i=>i.visibility==='public') : [...state.items];
+  renderGalleryOnly(items, !isPublic);
+}
+function setListMode(v){
+  state.listMode = v;
+  updateFilterBarUI();
+  const isPublic = state.view === 'public';
+  const items = isPublic ? state.items.filter(i=>i.visibility==='public') : [...state.items];
+  renderGalleryOnly(items, !isPublic);
 }
 
 /* カードグリッドだけ更新 */
@@ -1589,7 +1631,7 @@ function renderProfile(){
   const roleEn = p.roleEn || 'LIFE OBSERVER';
   const bio = p.bio || '';
   const links = p.links || [];
-  const BASE = 'https://gansuidou1-super.github.io/yushimaru.io/';
+  const BASE = 'https://atelier-e1661.web.app/';
 
   return `
     <div class="profile-wrap">
@@ -2099,7 +2141,12 @@ function render(){
   }
   c.innerHTML = `<div class="page-transition">${html}</div>`;
   if(state.view === 'profile') requestAnimationFrame(initCardQR);
-  if(state.view === 'public' || state.view === 'studio') requestAnimationFrame(attach3DHover);
+  if(state.view === 'public' || state.view === 'studio'){
+    requestAnimationFrame(() => {
+      attach3DHover();
+      attachFilterBarEvents();
+    });
+  }
   renderModal();
 }
 
