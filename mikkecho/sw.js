@@ -1,4 +1,4 @@
-const CACHE_NAME = 'mikkecho-cache-v8';
+const CACHE_NAME = 'mikkecho-cache-v9';
 const ASSETS = [
   './',
   './index.html',
@@ -27,34 +27,25 @@ self.addEventListener('activate', (event) => {
   );
 });
 
+// Network-first for our own files (so a new deploy reaches the phone on the next launch),
+// falling back to the cache when offline. User data is NOT stored here (it lives in IndexedDB).
 self.addEventListener('fetch', (event) => {
-  if (event.request.method !== 'GET') return;
-
-  if (event.request.mode === 'navigate') {
-    event.respondWith(
-      fetch(event.request)
-        .then((res) => {
-          const clone = res.clone();
-          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
-          return res;
-        })
-        .catch(() => caches.match('./index.html'))
-    );
-    return;
-  }
+  const req = event.request;
+  if (req.method !== 'GET') return;
+  const url = new URL(req.url);
+  if (url.origin !== self.location.origin) return;   // fonts etc: let the browser handle them
 
   event.respondWith(
-    caches.match(event.request).then((cached) => {
-      if (cached) return cached;
-      return fetch(event.request)
-        .then((res) => {
-          if (res.ok && event.request.url.startsWith(self.location.origin)) {
-            const clone = res.clone();
-            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
-          }
-          return res;
-        })
-        .catch(() => cached);
-    })
+    fetch(req, { cache: 'no-cache' })
+      .then((res) => {
+        if (res && res.ok) {
+          const copy = res.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(req, copy));
+        }
+        return res;
+      })
+      .catch(() =>
+        caches.match(req).then((cached) => cached || (req.mode === 'navigate' ? caches.match('./index.html') : undefined))
+      )
   );
 });

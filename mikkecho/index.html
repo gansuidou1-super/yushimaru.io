@@ -14,8 +14,10 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="みっけ帖">
 <link rel="stylesheet" href="style.css">
+<script>try{var __t=localStorage.getItem("mikkecho_theme");if(__t){document.documentElement.setAttribute("data-theme",__t);}}catch(e){}</script>
 </head>
 <body>
+<div class="boot-overlay" id="bootOverlay"><div class="boot-spinner">🖋️</div><div class="boot-text" id="bootText">データを読み込んでいます…</div></div>
 <div id="app">
 
   <header class="topbar">
@@ -45,6 +47,14 @@
           <div class="backup-actions">
             <button class="backup-btn-later" id="backupLaterBtn">あとで</button>
             <button class="backup-btn-do" id="backupDoBtn">エクスポートする</button>
+          </div>
+        </div>
+
+        <div id="draftBanner" class="backup-banner" style="display:none;">
+          <div class="backup-text">入力途中の記録があります（<span id="draftBannerName"></span>）。続きから再開しますか？</div>
+          <div class="backup-actions">
+            <button class="backup-btn-later" id="draftDiscardBtn">破棄する</button>
+            <button class="backup-btn-do" id="draftResumeBtn">続きから再開</button>
           </div>
         </div>
 
@@ -109,17 +119,42 @@
         </button>
       </div>
 
-      <div class="section-head"><h2>データ</h2></div>
+      <div class="section-head"><h2>バックアップと復元</h2></div>
       <div class="settings-list">
         <button class="settings-row" id="exportBtn">
           <div>
-            <div class="label">データをエクスポート</div>
-            <div class="desc">JSONファイルとして書き出します(写真含む)</div>
+            <div class="label">バックアップを書き出す</div>
+            <div class="desc">JSONファイルとして保存します（写真・句をすべて含みます）</div>
           </div>
           <span>⇩</span>
         </button>
+        <button class="settings-row" id="importBtn">
+          <div>
+            <div class="label">バックアップから読み込む（復元）</div>
+            <div class="desc">書き出したファイルを読み込みます。今のデータを残したまま統合もできます</div>
+          </div>
+          <span>⇧</span>
+        </button>
+        <input type="file" id="importFileInput" accept="application/json,.json,text/plain" style="display:none;">
       </div>
-      <button class="btn-ghost" id="resetBtn">すべてのデータをリセット</button>
+
+      <div class="section-head"><h2>自動バックアップ（この端末の中）</h2></div>
+      <div class="note-text">アプリを開くと1日1回、自動で控えを保存します。読み込みや復元・リセットの直前にも「操作直前の状態」を自動で残します。</div>
+      <div class="settings-list" id="snapshotList"></div>
+
+      <div class="section-head"><h2>保存の状態</h2></div>
+      <div class="status-card" id="storageStatus">確認中…</div>
+      <div id="legacyRestoreWrap" style="display:none;">
+        <button class="settings-row" id="legacyRestoreBtn" style="margin-top:8px;">
+          <div>
+            <div class="label">旧バージョンのデータを統合して復元</div>
+            <div class="desc">以前の保存方式で残っているデータを、今のデータに統合します（通常は不要です）</div>
+          </div>
+          <span>›</span>
+        </button>
+      </div>
+
+      <button class="btn-ghost" id="resetBtn" style="margin-top:14px;">すべてのデータをリセット</button>
 
       <div class="section-head"><h2>このアプリについて</h2></div>
       <div class="settings-list">
@@ -207,6 +242,20 @@
   <div class="toast" id="toast"></div>
   <div class="stamp-overlay" id="stampOverlay"><div class="stamp-mark">見つけた</div></div>
 
+  <!-- Import choice dialog -->
+  <div class="modal-backdrop" id="importBackdrop">
+    <div class="modal-sheet">
+      <h3>バックアップを読み込む</h3>
+      <div class="modal-sub" id="importSummary"></div>
+      <div style="display:flex; flex-direction:column; gap:8px; margin-top:4px;">
+        <button class="btn-primary" id="importMergeBtn">今のデータを残して統合する（おすすめ）</button>
+        <button class="btn-ghost" id="importReplaceBtn" style="margin-top:0;">今のデータを置き換える</button>
+        <button class="modal-cancel-plain" id="importCancelBtn">キャンセル</button>
+      </div>
+      <div class="note-text" style="margin-top:10px;">どちらを選んでも、実行前の状態は「操作直前の状態」として自動で残ります。</div>
+    </div>
+  </div>
+
   <!-- Onboarding (first launch) -->
   <div class="modal-backdrop" id="onboardBackdrop">
     <div class="modal-sheet onboard-sheet">
@@ -238,5 +287,33 @@
 
 <script src="data.js"></script>
 <script src="app.js"></script>
+<script>
+/* Self-heal after an app update: if an OLD cached app.js is still running (it never sets __MIKKECHO_V2),
+   drop the old service worker + caches once and reload. Saved data (IndexedDB / localStorage) is never touched. */
+(function () {
+  setTimeout(function () {
+    if (window.__MIKKECHO_V2) return;
+    var overlay = document.getElementById('bootOverlay');
+    if (!overlay) return;
+    var key = 'mikkecho_heal_v9';
+    try {
+      if (sessionStorage.getItem(key)) {
+        var t = document.getElementById('bootText');
+        if (t) t.textContent = '更新の適用に時間がかかっています。アプリを一度閉じて、開き直してください。（データは消えていません）';
+        return;
+      }
+      sessionStorage.setItem(key, '1');
+    } catch (e) { /* ignore */ }
+    var jobs = [];
+    if (navigator.serviceWorker && navigator.serviceWorker.getRegistrations) {
+      jobs.push(navigator.serviceWorker.getRegistrations().then(function (rs) { return Promise.all(rs.map(function (r) { return r.unregister(); })); }));
+    }
+    if (window.caches && caches.keys) {
+      jobs.push(caches.keys().then(function (ks) { return Promise.all(ks.map(function (k) { return caches.delete(k); })); }));
+    }
+    Promise.all(jobs).then(function () { location.reload(); }, function () { location.reload(); });
+  }, 3000);
+})();
+</script>
 </body>
 </html>
