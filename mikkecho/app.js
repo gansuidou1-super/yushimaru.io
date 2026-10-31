@@ -713,6 +713,60 @@
     return arr;
   }
 
+  /* ---- 住所ヒント → Googleマップ ---- */
+  function mapsUrlFor(hint) {
+    // "横田町12-13 地蔵堂前" のように番地+目印が続く場合は、番地までを検索語にする(目印語で外れにくくする)
+    const parts = String(hint).trim().split(/\s+/);
+    const q = (parts.length > 1 && /\d/.test(parts[0])) ? parts[0] : String(hint).trim();
+    return 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent('静岡県静岡市 ' + q);
+  }
+  function hintHTML(hint) {
+    return '📍 ' + escapeHtml(hint) + ` <a class="map-link" href="${mapsUrlFor(hint)}" target="_blank" rel="noopener noreferrer">地図</a>`;
+  }
+  const hintBackdrop = document.getElementById('hintBackdrop');
+  function openHintSheet(hint, name) {
+    document.getElementById('hintName').textContent = name || '';
+    document.getElementById('hintAddress').textContent = '📍 ' + hint;
+    document.getElementById('hintMapLink').href = mapsUrlFor(hint);
+    hintBackdrop.classList.add('open');
+  }
+  function closeHintSheet() { hintBackdrop.classList.remove('open'); }
+  document.getElementById('hintCloseBtn').addEventListener('click', closeHintSheet);
+  hintBackdrop.addEventListener('click', (e) => { if (e.target === hintBackdrop) closeHintSheet(); });
+
+  /* ---- 写真ビューア(全体表示・左右スワイプ) ---- */
+  const photoViewer = document.getElementById('photoViewer');
+  const pvStrip = document.getElementById('pvStrip');
+  const pvCount = document.getElementById('pvCount');
+  function openPhotoViewer(photos, index) {
+    if (!photos || !photos.length) return;
+    pvStrip.innerHTML = '';
+    photos.forEach(src => {
+      const slide = document.createElement('div');
+      slide.className = 'pv-slide';
+      const img = document.createElement('img');
+      img.src = src;
+      slide.appendChild(img);
+      pvStrip.appendChild(slide);
+    });
+    const updateCount = () => {
+      const i = Math.round(pvStrip.scrollLeft / Math.max(1, pvStrip.clientWidth));
+      pvCount.textContent = photos.length > 1 ? `${Math.min(photos.length, i + 1)} / ${photos.length}` : '';
+    };
+    pvStrip.onscroll = updateCount;
+    photoViewer.classList.add('open');
+    photoViewer.setAttribute('aria-hidden', 'false');
+    pvStrip.scrollLeft = (index || 0) * pvStrip.clientWidth;
+    updateCount();
+  }
+  function closePhotoViewer() {
+    photoViewer.classList.remove('open');
+    photoViewer.setAttribute('aria-hidden', 'true');
+    pvStrip.innerHTML = '';
+  }
+  document.getElementById('pvClose').addEventListener('click', closePhotoViewer);
+  pvStrip.addEventListener('click', (e) => { if (e.target === pvStrip || e.target.classList.contains('pv-slide')) closePhotoViewer(); });
+
   function renderCategoryDetail() {
     const cat = getCategory(currentCategoryId);
     if (!cat) return;
@@ -724,8 +778,9 @@
 
     spotGridEl.innerHTML = '';
 
-    function showHintToast(hint) {
-      showToast(hint ? '📍 ' + hint : '住所の登録はありません');
+    function showHintToast(hint, name) {
+      if (!hint) { showToast('住所の登録はありません'); return; }
+      openHintSheet(hint, name);
     }
 
     const filtered = filterDisplayItems(buildDisplayItems(cat), currentSpotQuery);
@@ -746,7 +801,7 @@
              <div class="spot-name">${escapeHtml(entry.name)}</div>`;
         card.addEventListener('click', () => openFindModal({ mode: 'checklist', entryId: entry.id, categoryId: cat.id, name: entry.name, hint: entry.hint }));
         const hintBtn = card.querySelector('.hint-btn');
-        if (hintBtn) hintBtn.addEventListener('click', (ev) => { ev.stopPropagation(); showHintToast(entry.hint); });
+        if (hintBtn) hintBtn.addEventListener('click', (ev) => { ev.stopPropagation(); showHintToast(entry.hint, entry.name); });
       } else {
         card.className = 'spot-card found';
         card.innerHTML = `
@@ -883,6 +938,7 @@
       const tile = document.createElement('div');
       tile.className = 'photo-thumb';
       tile.innerHTML = `<img src="${src}"><button type="button" class="remove-btn">×</button>`;
+      tile.querySelector('img').addEventListener('click', () => openPhotoViewer(pendingPhotos.slice(), idx));
       tile.querySelector('.remove-btn').addEventListener('click', () => {
         pendingPhotos.splice(idx, 1);
         renderPhotoGrid();
@@ -931,7 +987,7 @@
 
     if (ctx.mode === 'checklist') {
       findModalTitle.textContent = rec ? `${ctx.name} を編集` : ctx.name;
-      findModalHint.textContent = ctx.hint ? '📍 ' + ctx.hint : '';
+      findModalHint.innerHTML = ctx.hint ? hintHTML(ctx.hint) : '';
       freeNameField.style.display = 'none';
     } else {
       findModalTitle.textContent = rec ? '記録を編集' : '新しく見つけた';
@@ -1116,13 +1172,16 @@
     }
     spotDetailCtx = { entryId, categoryId, kind, entry, rec };
     spotDetailName.textContent = entry.name;
-    spotDetailHint.textContent = (kind === 'preset' && entry.hint) ? '📍 ' + entry.hint : '';
+    spotDetailHint.innerHTML = (kind === 'preset' && entry.hint) ? hintHTML(entry.hint) : '';
     const photos = rec.photos || [];
     spotDetailBody.innerHTML = `
       ${photos.length ? `<div class="detail-photo-scroll">${photos.map(p => `<img src="${p}">`).join('')}</div>` : ''}
       <div class="detail-haiku">${escapeHtml(rec.haiku || '(一言なし)')}</div>
       <div class="detail-meta">${rec.date} に記録</div>
     `;
+    spotDetailBody.querySelectorAll('.detail-photo-scroll img').forEach((img, i) => {
+      img.addEventListener('click', () => openPhotoViewer(photos, i));
+    });
     spotDetailBackdrop.classList.add('open');
   }
   document.getElementById('spotCloseBtn').addEventListener('click', () => spotDetailBackdrop.classList.remove('open'));
@@ -1595,6 +1654,8 @@
     return b ? b.dataset.view : 'zukan';
   }
   function handleBack() {
+    if (photoViewer.classList.contains('open')) { closePhotoViewer(); return true; }
+    if (hintBackdrop.classList.contains('open')) { closeHintSheet(); return true; }
     if (onboardBackdrop.classList.contains('open')) { closeOnboarding(true); return true; }
     if (importBackdrop.classList.contains('open')) { pendingImport = null; closeImportDialog(); return true; }
     if (categoryModalBackdrop.classList.contains('open')) { categoryModalBackdrop.classList.remove('open'); return true; }

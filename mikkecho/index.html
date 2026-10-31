@@ -239,6 +239,25 @@
     </div>
   </div>
 
+  <!-- Hint (address) sheet with Google Maps link -->
+  <div class="modal-backdrop" id="hintBackdrop">
+    <div class="modal-sheet">
+      <h3 id="hintName"></h3>
+      <div class="hint-address" id="hintAddress"></div>
+      <a class="btn-primary map-open-btn" id="hintMapLink" target="_blank" rel="noopener noreferrer">🗺️ Googleマップで開く</a>
+      <div class="modal-actions">
+        <button class="btn-cancel" id="hintCloseBtn" style="flex:1;">閉じる</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Full-size photo viewer -->
+  <div class="photo-viewer" id="photoViewer" aria-hidden="true">
+    <div class="pv-count" id="pvCount"></div>
+    <button type="button" class="pv-close" id="pvClose" aria-label="閉じる">×</button>
+    <div class="pv-strip" id="pvStrip"></div>
+  </div>
+
   <div class="toast" id="toast"></div>
   <div class="stamp-overlay" id="stampOverlay"><div class="stamp-mark">見つけた</div></div>
 

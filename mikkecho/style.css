@@ -784,3 +784,54 @@ main{
 }
 .photo-add-tile.busy{ cursor:default; opacity:.7; }
 button:disabled{ opacity:.55; }
+
+
+/* ===== v10: 地図リンク / 写真ビューア ===== */
+.hint-address{
+  font-size:15px; line-height:1.7; color: var(--text);
+  margin: 4px 0 16px; word-break: break-all;
+}
+.map-open-btn{
+  display:block; text-align:center; text-decoration:none;
+  padding:13px 16px; border-radius: var(--radius-md);
+  margin-bottom:12px; font-size:15px;
+}
+.map-link{
+  display:inline-block; margin-left:6px; padding:2px 8px;
+  border:1px solid currentColor; border-radius:999px;
+  font-size:11px; text-decoration:none; color: var(--vermilion-600);
+}
+.detail-photo-scroll img, .photo-thumb img{ cursor: zoom-in; }
+
+.photo-viewer{
+  position:fixed; inset:0; z-index:100;
+  background:#000;
+  display:none;
+}
+.photo-viewer.open{ display:block; }
+.pv-strip{
+  position:absolute; inset:0;
+  display:flex; overflow-x:auto; overflow-y:hidden;
+  scroll-snap-type:x mandatory;
+  -webkit-overflow-scrolling:touch;
+}
+.pv-slide{
+  flex:0 0 100%; width:100%; height:100%;
+  scroll-snap-align:center; scroll-snap-stop:always;
+  display:flex; align-items:center; justify-content:center;
+}
+.pv-slide img{
+  width:100%; height:100%; object-fit:contain;
+}
+.pv-close{
+  position:absolute; z-index:2;
+  top:calc(env(safe-area-inset-top, 0px) + 10px); right:12px;
+  width:40px; height:40px; border-radius:50%;
+  border:none; background:rgba(255,255,255,.18); color:#fff;
+  font-size:24px; line-height:1; cursor:pointer;
+}
+.pv-count{
+  position:absolute; z-index:2;
+  top:calc(env(safe-area-inset-top, 0px) + 20px); left:16px;
+  color:#fff; font-size:13px; text-shadow:0 1px 3px rgba(0,0,0,.7);
+}
